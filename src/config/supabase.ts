@@ -6,7 +6,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error(
-    "❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment variables."
+    "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment variables."
   );
 }
 
@@ -15,7 +15,7 @@ try {
   new URL(supabaseUrl);
 } catch {
   throw new Error(
-    `❌ SUPABASE_URL is not a valid URL: "${supabaseUrl}"\n` +
+    `SUPABASE_URL is not a valid URL: "${supabaseUrl}"\n` +
     `   Expected format: https://your-project-ref.supabase.co`
   );
 }
@@ -39,7 +39,7 @@ export async function pingSupabase(): Promise<void> {
   const { error } = await supabase.from("users").select("id").limit(1);
   if (error) {
     throw new Error(
-      `Supabase connection failed: ${error.message}\n` +
+      ` Supabase connection failed: ${error.message}\n` +
       `   URL: ${supabaseUrl}\n` +
       `   Check your SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env`
     );
