@@ -313,7 +313,7 @@ END $$;
 INSERT INTO users (email, password_hash, role, first_name, last_name, is_verified, is_active)
 VALUES (
   'admin@hack51.com',
-  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5uFNi',
+  '$2b$12$Ehcy8PpOsiY0.Bquc1Boxun0UbI5WM2YakyaV/xwSkgD3JzBKix52',
   'system_admin',
   'System',
   'Admin',

@@ -10,10 +10,10 @@ const openApiDoc = {
 
 ### How to use Bearer auth in Swagger
 1. Call \`POST /auth/login\` (or role-specific login) → copy **access_token** from the response \`data\` field
-2. Click ** Authorize** button (top right of this page)
+2. Click **Authorize** button (top right of this page)
 3. Paste ONLY the token — **not** "Bearer", not the password — into the **bearerAuth** field
-   -  \`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\`
-   -  \`Bearer eyJ...\` or \`$2b$12$...\` (that last one is a bcrypt hash, not a JWT)
+   - \`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\`
+   - \`Bearer eyJ...\` or \`$2b$12$...\` (that last one is a bcrypt hash, not a JWT)
 4. Click **Authorize → Close**
 
 ### Default system admin credentials
