@@ -12,6 +12,10 @@ import { AppError } from "./exceptions/AppError.js";
 import { errorResponse } from "./types/api-response.js";
 import { ZodError } from "zod";
 
+// Validate env here so both local (index.ts) and Vercel (api/index.ts) benefit.
+// validateEnv() only logs warnings for optional vars and throws for missing
+// required ones — safe to call at module load because dotenv/config has already
+// run and Vercel injects env vars before the module graph is evaluated.
 validateEnv();
 
 const app = new Hono();

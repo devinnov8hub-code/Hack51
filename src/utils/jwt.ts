@@ -1,8 +1,19 @@
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { UnauthorizedError } from "../exceptions/errors.js";
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET!;
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
+// Read secrets lazily at call time — not at module load — so Vercel cold-starts
+// and local dev without a .env don't crash before dotenv has run.
+function getAccessSecret(): string {
+  const s = process.env.JWT_ACCESS_SECRET;
+  if (!s) throw new Error("Missing JWT_ACCESS_SECRET in environment variables.");
+  return s;
+}
+function getRefreshSecret(): string {
+  const s = process.env.JWT_REFRESH_SECRET;
+  if (!s) throw new Error("Missing JWT_REFRESH_SECRET in environment variables.");
+  return s;
+}
+
 // Numeric seconds for jsonwebtoken compatibility
 const ACCESS_EXPIRES_SEC  = 60 * 15;          // 15 minutes
 const REFRESH_EXPIRES_SEC = 60 * 60 * 24 * 30; // 30 days
@@ -27,12 +38,12 @@ export interface RefreshTokenPayload {
 export function signAccessToken(userId: string, email: string, role: string): string {
   const payload = { sub: userId, email, role, type: "access" };
   const opts: SignOptions = { algorithm: "HS256", expiresIn: ACCESS_EXPIRES_SEC };
-  return jwt.sign(payload, ACCESS_SECRET, opts);
+  return jwt.sign(payload, getAccessSecret(), opts);
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
   try {
-    const payload = jwt.verify(token, ACCESS_SECRET, { algorithms: ["HS256"] }) as AccessTokenPayload;
+    const payload = jwt.verify(token, getAccessSecret(), { algorithms: ["HS256"] }) as AccessTokenPayload;
     if (payload.type !== "access") throw new UnauthorizedError("Invalid token type", "INVALID_TOKEN_TYPE");
     return payload;
   } catch (err) {
@@ -45,12 +56,12 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
 export function signRefreshToken(userId: string, jti: string): string {
   const payload = { sub: userId, jti, type: "refresh" };
   const opts: SignOptions = { algorithm: "HS256", expiresIn: REFRESH_EXPIRES_SEC };
-  return jwt.sign(payload, REFRESH_SECRET, opts);
+  return jwt.sign(payload, getRefreshSecret(), opts);
 }
 
 export function verifyRefreshToken(token: string): RefreshTokenPayload {
   try {
-    const payload = jwt.verify(token, REFRESH_SECRET, { algorithms: ["HS256"] }) as RefreshTokenPayload;
+    const payload = jwt.verify(token, getRefreshSecret(), { algorithms: ["HS256"] }) as RefreshTokenPayload;
     if (payload.type !== "refresh") throw new UnauthorizedError("Invalid token type", "INVALID_TOKEN_TYPE");
     return payload;
   } catch (err) {

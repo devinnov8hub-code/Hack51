@@ -1,10 +1,22 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+// Lazy singleton — created on first use, not at module load.
+// Prevents crashes when RESEND_API_KEY isn't set yet (e.g. during cold-start).
+let _resend: Resend | null = null;
 
-const FROM = `${process.env.RESEND_FROM_NAME ?? "Hack51"} <${
-  process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"
-}>`;
+function getResend(): Resend {
+  if (_resend) return _resend;
+  const key = process.env.RESEND_API_KEY;
+  if (!key) throw new Error("Missing RESEND_API_KEY in environment variables.");
+  _resend = new Resend(key);
+  return _resend;
+}
+
+function getFrom(): string {
+  return `${process.env.RESEND_FROM_NAME ?? "Hack51"} <${
+    process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"
+  }>`;
+}
 
 function emailWrapper(title: string, body: string): string {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
@@ -30,7 +42,7 @@ export async function sendEmailVerificationOtp(to: string, firstName: string, ot
     <p>Hi ${firstName || "there"}, welcome to Hack51! Use the code below to verify your email. Expires in <strong>10 minutes</strong>.</p>
     <div class="otp">${otp}</div>
     <p>Enter this code in the app to complete your registration.</p>`;
-  await resend.emails.send({ from: FROM, to, subject: `${otp} is your Hack51 verification code`, html: emailWrapper("Verify your email – Hack51", body) });
+  await getResend().emails.send({ from: getFrom(), to, subject: `${otp} is your Hack51 verification code`, html: emailWrapper("Verify your email – Hack51", body) });
 }
 
 export async function sendWelcomeEmail(to: string, firstName: string, role: string): Promise<void> {
@@ -38,7 +50,7 @@ export async function sendWelcomeEmail(to: string, firstName: string, role: stri
   const body = `<span class="badge">Welcome</span>
     <h2>Your account is verified 🎉</h2>
     <p>Hi ${firstName || "there"}, your Hack51 account is now active. You're registered as a <strong>${roleLabel}</strong>.</p>`;
-  await resend.emails.send({ from: FROM, to, subject: "Welcome to Hack51 – you're all set!", html: emailWrapper("Welcome to Hack51", body) });
+  await getResend().emails.send({ from: getFrom(), to, subject: "Welcome to Hack51 – you're all set!", html: emailWrapper("Welcome to Hack51", body) });
 }
 
 export async function sendPasswordResetOtp(to: string, firstName: string, otp: string): Promise<void> {
@@ -47,7 +59,7 @@ export async function sendPasswordResetOtp(to: string, firstName: string, otp: s
     <p>Hi ${firstName || "there"}, use the code below to reset your password. Expires in <strong>10 minutes</strong>.</p>
     <div class="otp">${otp}</div>
     <p>If you didn't request this, ignore this email. Your password will not change.</p>`;
-  await resend.emails.send({ from: FROM, to, subject: `${otp} is your Hack51 password reset code`, html: emailWrapper("Password Reset – Hack51", body) });
+  await getResend().emails.send({ from: getFrom(), to, subject: `${otp} is your Hack51 password reset code`, html: emailWrapper("Password Reset – Hack51", body) });
 }
 
 export async function sendNewSignInNotification(
@@ -61,7 +73,7 @@ export async function sendNewSignInNotification(
     ${meta.ip ? `<strong>IP:</strong> ${meta.ip}<br/>` : ""}
     ${meta.userAgent ? `<strong>Device:</strong> ${meta.userAgent}` : ""}</p>
     <p>If this wasn't you, reset your password immediately.</p>`;
-  await resend.emails.send({ from: FROM, to, subject: "New sign-in to your Hack51 account", html: emailWrapper("New Sign-In – Hack51", body) });
+  await getResend().emails.send({ from: getFrom(), to, subject: "New sign-in to your Hack51 account", html: emailWrapper("New Sign-In – Hack51", body) });
 }
 
 export async function sendPasswordChangedNotification(to: string, firstName: string): Promise<void> {
@@ -69,5 +81,5 @@ export async function sendPasswordChangedNotification(to: string, firstName: str
     <h2>Your password has been changed</h2>
     <p>Hi ${firstName || "there"}, your Hack51 account password was successfully changed.</p>
     <p>If you did <strong>not</strong> make this change, contact support immediately.</p>`;
-  await resend.emails.send({ from: FROM, to, subject: "Your Hack51 password was changed", html: emailWrapper("Password Changed – Hack51", body) });
+  await getResend().emails.send({ from: getFrom(), to, subject: "Your Hack51 password was changed", html: emailWrapper("Password Changed – Hack51", body) });
 }
