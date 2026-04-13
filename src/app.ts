@@ -21,10 +21,22 @@ validateEnv();
 const app = new Hono();
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
+// CORS_ORIGINS accepts a comma-separated list, e.g.:
+// "http://localhost:3000,https://yourapp.vercel.app"
+// Falls back to "*" (allow all) if not set — fine for development/testing.
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
+  : ["*"];
+
 app.use("*", cors({
-  origin: process.env.FRONTEND_URL ?? "*",
+  origin: (origin) => {
+    if (allowedOrigins.includes("*")) return "*";
+    if (!origin || allowedOrigins.includes(origin)) return origin;
+    return allowedOrigins[0]; // fallback
+  },
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
   maxAge: 600,
 }));
 
