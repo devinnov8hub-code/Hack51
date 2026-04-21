@@ -16,8 +16,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         headers.set(key, value);
       }
     }
-
-    // Read body for non-GET/HEAD requests
+    
     let body: string | undefined;
     if (req.method !== "GET" && req.method !== "HEAD") {
       body = await new Promise<string>((resolve, reject) => {

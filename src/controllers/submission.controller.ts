@@ -2,13 +2,11 @@ import type { Context } from "hono";
 import { successResponse } from "../types/api-response.js";
 import { getBody } from "../middleware/validate.middleware.js";
 import * as submissionRepo from "../repositories/submission.repository.js";
-import * as catalogRepo from "../repositories/catalog.repository.js";
-import * as jobRequestRepo from "../repositories/job-request.repository.js";
 import { BadRequestError, ForbiddenError } from "../exceptions/errors.js";
 import type { SubmitInput } from "../dto/request.dto.js";
 
 export const SubmissionController = {
-  // ── CANDIDATE: BROWSE OPEN CHALLENGES ────────────────────────────────────
+  // ─── CANDIDATE: browse open challenges (no auth) ───────────────────────────
   async listOpenChallenges(c: Context) {
     const search = c.req.query("search");
     const { supabase } = await import("../config/supabase.js");
@@ -46,16 +44,15 @@ export const SubmissionController = {
     return c.json(successResponse("Challenge detail retrieved.", data));
   },
 
-  // ── CANDIDATE: SUBMIT ─────────────────────────────────────────────────────
+  // ─── CANDIDATE: submit ─────────────────────────────────────────────────────
   async submit(c: Context) {
     const { id: requestId } = c.req.param() as { id: string };
     const body = getBody<SubmitInput>(c);
     const candidateId = c.get("userId");
 
-    // Verify request is still open
     const { supabase } = await import("../config/supabase.js");
     const { data: req } = await supabase.from("job_requests")
-      .select("id, status, deadline, challenge_cap").eq("id", requestId).single();
+      .select("id, status, deadline, challenge_cap").eq("id", requestId).maybeSingle();
 
     if (!req || req.status !== "published") {
       throw new ForbiddenError("This challenge is no longer accepting submissions.", "CHALLENGE_CLOSED");
@@ -76,21 +73,33 @@ export const SubmissionController = {
     return c.json(successResponse("Submission received. We'll notify you of the outcome.", data), 201);
   },
 
-  // ── CANDIDATE: MY SUBMISSIONS ─────────────────────────────────────────────
+  // ─── CANDIDATE: my submissions ─────────────────────────────────────────────
   async mySubmissions(c: Context) {
     const candidateId = c.get("userId");
     const data = await submissionRepo.listCandidateSubmissions(candidateId);
     return c.json(successResponse("Submissions retrieved.", data));
   },
 
+  // FIX (C2): the previous implementation read `data.users.id` which depends
+  // on whether Supabase returns the join as an object or array — unreliable.
+  // Replace with a direct candidate_id check at the DB layer.
   async getMySubmission(c: Context) {
     const { id } = c.req.param() as { id: string };
     const candidateId = c.get("userId");
-    const data = await submissionRepo.getSubmission(id);
-    // Ensure the submission belongs to this candidate
-    if ((data.users as any)?.id !== candidateId) {
+
+    // First, confirm the submission belongs to this candidate.
+    const { supabase } = await import("../config/supabase.js");
+    const { data: owner, error: ownerErr } = await supabase
+      .from("submissions")
+      .select("id, candidate_id")
+      .eq("id", id).maybeSingle();
+    if (ownerErr) throw new BadRequestError(ownerErr.message);
+    if (!owner) throw new BadRequestError("Submission not found", "SUBMISSION_NOT_FOUND");
+    if (owner.candidate_id !== candidateId) {
       throw new ForbiddenError("You do not have access to this submission.", "FORBIDDEN");
     }
+
+    const data = await submissionRepo.getSubmission(id);
     return c.json(successResponse("Submission retrieved.", data));
   },
 };

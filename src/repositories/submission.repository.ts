@@ -1,5 +1,5 @@
 import { supabase } from "../config/supabase.js";
-import { InternalError, NotFoundError, ConflictError, BadRequestError } from "../exceptions/errors.js";
+import { InternalError, NotFoundError, ConflictError } from "../exceptions/errors.js";
 
 export async function getSubmission(id: string) {
   const { data, error } = await supabase.from("submissions").select(`
@@ -51,43 +51,70 @@ export async function listCandidateSubmissions(candidateId: string) {
 }
 
 export async function createSubmission(input: {
-  job_request_id: string; candidate_id: string;
-  artifact_urls: string[]; artifact_type: string;
-  submission_statement?: string; integrity_declared: boolean;
+  job_request_id: string;
+  candidate_id: string;
+  artifact_urls: string[];
+  artifact_type: string;
+  submission_statement?: string;
+  integrity_declared: boolean;
 }) {
-  // Check for duplicate
-  const { data: existing } = await supabase.from("submissions")
-    .select("id, status").eq("job_request_id", input.job_request_id)
-    .eq("candidate_id", input.candidate_id).single();
+  // FIX (C1): `.single()` throws when no row exists, which was causing every
+  // first-time submission to fail. `.maybeSingle()` returns `data: null` for
+  // no match, which is what we want here.
+  const { data: existing, error: existingErr } = await supabase.from("submissions")
+    .select("id, status")
+    .eq("job_request_id", input.job_request_id)
+    .eq("candidate_id", input.candidate_id)
+    .maybeSingle();
+  if (existingErr) throw new InternalError(existingErr.message);
 
   if (existing) {
     if (existing.status !== "returned") {
       throw new ConflictError("You have already submitted to this request", "ALREADY_SUBMITTED");
     }
-    // Allow resubmit if returned
+    // Resubmit path (allowed only when previous status was 'returned')
     const { data, error } = await supabase.from("submissions")
       .update({
-        ...input, status: "submitted", triage_decision: null, triage_reason: null,
-        reviewer_notes: null, total_score: null, triaged_at: null, scored_at: null,
-        submitted_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        artifact_urls: input.artifact_urls,
+        artifact_type: input.artifact_type,
+        submission_statement: input.submission_statement ?? null,
+        integrity_declared: input.integrity_declared,
+        status: "submitted",
+        triage_decision: null,
+        triage_reason: null,
+        reviewer_notes: null,
+        total_score: null,
+        triaged_at: null,
+        scored_at: null,
+        submitted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }).eq("id", existing.id)
       .select().single();
     if (error) throw new InternalError(error.message);
 
-    // Increment resubmit count
     await supabase.rpc("increment_resubmit_count", { submission_id: existing.id });
     return data;
   }
 
   const { data, error } = await supabase.from("submissions")
-    .insert({ ...input, status: "submitted" }).select().single();
+    .insert({
+      job_request_id: input.job_request_id,
+      candidate_id: input.candidate_id,
+      artifact_urls: input.artifact_urls,
+      artifact_type: input.artifact_type,
+      submission_statement: input.submission_statement ?? null,
+      integrity_declared: input.integrity_declared,
+      status: "submitted",
+    })
+    .select().single();
   if (error) throw new InternalError(error.message);
   return data;
 }
 
 export async function triageSubmission(id: string, input: {
   triage_decision: "valid" | "invalid" | "returned";
-  triage_reason?: string; triaged_by: string;
+  triage_reason?: string;
+  triaged_by: string;
 }) {
   const statusMap = { valid: "under_review", invalid: "rejected", returned: "returned" } as const;
   const { data, error } = await supabase.from("submissions")
@@ -105,12 +132,11 @@ export async function triageSubmission(id: string, input: {
 
 export async function scoreSubmission(id: string, input: {
   scores: { criterion_id: string; criterion_title: string; weight: number; score_percent: number }[];
-  reviewer_notes?: string; scored_by: string;
+  reviewer_notes?: string;
+  scored_by: string;
 }) {
-  // Validate total weighted score
   const total = input.scores.reduce((s, c) => s + (c.weight * c.score_percent / 100), 0);
 
-  // Upsert each criterion score
   await supabase.from("submission_scores").delete().eq("submission_id", id);
   const scoreRows = input.scores.map(s => ({ submission_id: id, ...s }));
   const { error: se } = await supabase.from("submission_scores").insert(scoreRows);

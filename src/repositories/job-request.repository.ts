@@ -1,5 +1,13 @@
 import { supabase } from "../config/supabase.js";
-import { InternalError, NotFoundError } from "../exceptions/errors.js";
+import { InternalError, NotFoundError, BadRequestError } from "../exceptions/errors.js";
+
+type CustomRubricRow = {
+  id?: string;
+  title: string;
+  description?: string;
+  weight: number;
+  sort_order?: number;
+};
 
 export async function listJobRequests(employerId: string, status?: string, draftsOnly = false) {
   let q = supabase.from("job_requests").select(`
@@ -19,7 +27,7 @@ export async function getJobRequest(id: string, employerId?: string) {
   let q = supabase.from("job_requests").select(`
     id, title, role_type, role_level, status, challenge_cap,
     shortlist_size, deadline, deposit_amount, admin_fee, final_charge,
-    snapshot_challenge, snapshot_rubric,
+    snapshot_challenge, snapshot_rubric, custom_rubric,
     published_at, closed_at, created_at, updated_at,
     challenges(id, title, summary, scenario, deliverables,
       submission_format, constraints_text,
@@ -38,22 +46,36 @@ export async function getJobRequestAdmin(id: string) {
 }
 
 export async function createJobRequest(input: {
-  workspace_id: string; employer_id: string; title: string;
-  role_type?: string; role_level?: string; challenge_id?: string;
-  challenge_cap?: number; shortlist_size?: number; deadline?: string;
+  workspace_id: string;
+  employer_id: string;
+  title: string;
+  role_type?: string;
+  role_level?: string;
+  challenge_id?: string;
+  challenge_cap?: number;
+  shortlist_size?: number;
+  deadline?: string;
+  custom_rubric?: CustomRubricRow[];
 }) {
-  // Calculate deposit: admin_fee (fixed ₦800k) + cap * unit_price (₦180k)
+  // Deposit = admin_fee (₦800k) + cap * unit_price (₦180k)
   const ADMIN_FEE = 800000;
   const UNIT_PRICE = 180000;
   const cap = input.challenge_cap ?? 10;
   const deposit = ADMIN_FEE + cap * UNIT_PRICE;
 
   const { data, error } = await supabase.from("job_requests").insert({
-    ...input,
+    workspace_id: input.workspace_id,
+    employer_id: input.employer_id,
+    title: input.title,
+    role_type: input.role_type,
+    role_level: input.role_level,
+    challenge_id: input.challenge_id,
     challenge_cap: cap,
     shortlist_size: input.shortlist_size ?? 3,
+    deadline: input.deadline,
     admin_fee: ADMIN_FEE,
     deposit_amount: deposit,
+    custom_rubric: input.custom_rubric ?? null,
     status: "draft",
   }).select().single();
   if (error) throw new InternalError(error.message);
@@ -61,11 +83,25 @@ export async function createJobRequest(input: {
 }
 
 export async function updateJobRequest(id: string, employerId: string, input: {
-  title?: string; role_type?: string; role_level?: string; challenge_id?: string;
-  challenge_cap?: number; shortlist_size?: number; deadline?: string;
+  title?: string;
+  role_type?: string;
+  role_level?: string;
+  challenge_id?: string;
+  challenge_cap?: number;
+  shortlist_size?: number;
+  deadline?: string;
+  custom_rubric?: CustomRubricRow[];
 }) {
+  // If challenge_cap changes, the deposit changes too.
+  const patch: Record<string, unknown> = { ...input, updated_at: new Date().toISOString() };
+  if (input.challenge_cap !== undefined) {
+    const ADMIN_FEE = 800000;
+    const UNIT_PRICE = 180000;
+    patch.deposit_amount = ADMIN_FEE + input.challenge_cap * UNIT_PRICE;
+  }
+
   const { data, error } = await supabase.from("job_requests")
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(patch)
     .eq("id", id).eq("employer_id", employerId).eq("status", "draft")
     .select().single();
   if (error?.code === "PGRST116") throw new NotFoundError("Draft request not found", "REQUEST_NOT_FOUND");
@@ -74,12 +110,33 @@ export async function updateJobRequest(id: string, employerId: string, input: {
 }
 
 export async function publishJobRequest(id: string, employerId: string) {
-  // Get challenge + rubric to snapshot
   const req = await getJobRequest(id, employerId);
-  if (req.status !== "draft") throw new InternalError("Only draft requests can be published");
+  const reqAny = req as any;
+  if (reqAny.status !== "draft") {
+    throw new BadRequestError("Only draft requests can be published.", "NOT_DRAFT");
+  }
 
-  const snapshot_challenge = req.challenges ?? null;
-  const snapshot_rubric = (req.challenges as any)?.rubric_criteria ?? null;
+  const snapshot_challenge = reqAny.challenges ?? null;
+
+  // Rubric snapshot precedence:
+  //   1. If employer set custom_rubric, snapshot that (the "customizes the
+  //      challenge brief and rubric before publishing" case).
+  //   2. Else, snapshot the challenge's default rubric.
+  let snapshot_rubric: unknown = null;
+  if (reqAny.custom_rubric && Array.isArray(reqAny.custom_rubric) && reqAny.custom_rubric.length) {
+    const total = reqAny.custom_rubric.reduce(
+      (s: number, c: { weight: number }) => s + c.weight, 0
+    );
+    if (total !== 100) {
+      throw new BadRequestError(
+        "custom_rubric weights must sum to exactly 100 before publishing",
+        "RUBRIC_WEIGHT_INVALID"
+      );
+    }
+    snapshot_rubric = reqAny.custom_rubric;
+  } else {
+    snapshot_rubric = reqAny.challenges?.rubric_criteria ?? null;
+  }
 
   const { data, error } = await supabase.from("job_requests")
     .update({
@@ -128,7 +185,7 @@ export async function listAllJobRequestsAdmin(status?: string) {
     workspaces(company_name)
   `).order("published_at", { ascending: false });
   if (status) q = q.eq("status", status);
-  else q = q.neq("status", "draft"); // admins only see non-drafts
+  else q = q.neq("status", "draft");
   const { data, error } = await q;
   if (error) throw new InternalError(error.message);
   return data ?? [];
