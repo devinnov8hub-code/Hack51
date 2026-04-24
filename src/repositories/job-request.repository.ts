@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabase.js";
 import { InternalError, NotFoundError, BadRequestError } from "../exceptions/errors.js";
+import { computeDeposit } from "../config/constants.js";
 
 type CustomRubricRow = {
   id?: string;
@@ -57,11 +58,10 @@ export async function createJobRequest(input: {
   deadline?: string;
   custom_rubric?: CustomRubricRow[];
 }) {
-  // Deposit = admin_fee (₦800k) + cap * unit_price (₦180k)
-  const ADMIN_FEE = 800000;
-  const UNIT_PRICE = 180000;
+  // Deposit is centralized in config/constants.ts so we change pricing
+  // in ONE place. Backend default: ₦800k admin_fee + cap × ₦180k unit_price.
   const cap = input.challenge_cap ?? 10;
-  const deposit = ADMIN_FEE + cap * UNIT_PRICE;
+  const { admin_fee, deposit_amount } = computeDeposit(cap);
 
   const { data, error } = await supabase.from("job_requests").insert({
     workspace_id: input.workspace_id,
@@ -73,8 +73,8 @@ export async function createJobRequest(input: {
     challenge_cap: cap,
     shortlist_size: input.shortlist_size ?? 3,
     deadline: input.deadline,
-    admin_fee: ADMIN_FEE,
-    deposit_amount: deposit,
+    admin_fee,
+    deposit_amount,
     custom_rubric: input.custom_rubric ?? null,
     status: "draft",
   }).select().single();
@@ -95,9 +95,8 @@ export async function updateJobRequest(id: string, employerId: string, input: {
   // If challenge_cap changes, the deposit changes too.
   const patch: Record<string, unknown> = { ...input, updated_at: new Date().toISOString() };
   if (input.challenge_cap !== undefined) {
-    const ADMIN_FEE = 800000;
-    const UNIT_PRICE = 180000;
-    patch.deposit_amount = ADMIN_FEE + input.challenge_cap * UNIT_PRICE;
+    const { deposit_amount } = computeDeposit(input.challenge_cap);
+    patch.deposit_amount = deposit_amount;
   }
 
   const { data, error } = await supabase.from("job_requests")
@@ -174,6 +173,38 @@ export async function getRequestSubmissionStats(requestId: string) {
     shortlisted: all.filter(s => s.status === "shortlisted").length,
     rejected: all.filter(s => s.status === "rejected").length,
   };
+}
+
+/**
+ * Submissions list scoped to one request, viewable by the owning employer.
+ * Returns the candidates' identity + submission status, but NOT the
+ * artifact URLs or scoring breakdown until the shortlist is delivered
+ * (we don't want employers fishing in raw submissions before review).
+ *
+ * Once the request reaches `shortlisted` status, full details of the
+ * shortlisted submissions are exposed via /employer/shortlists/:id.
+ */
+export async function listSubmissionsForEmployer(
+  requestId: string,
+  employerId: string,
+) {
+  // Verify ownership first
+  const own = await supabase.from("job_requests")
+    .select("id, status")
+    .eq("id", requestId)
+    .eq("employer_id", employerId)
+    .maybeSingle();
+  if (own.error) throw new InternalError(own.error.message);
+  if (!own.data) throw new NotFoundError("Job request not found", "REQUEST_NOT_FOUND");
+
+  const { data, error } = await supabase.from("submissions").select(`
+    id, status, artifact_type, submitted_at, updated_at,
+    triage_decision, total_score, resubmit_count,
+    users!candidate_id(id, first_name, last_name, avatar_url)
+  `).eq("job_request_id", requestId)
+    .order("submitted_at", { ascending: false });
+  if (error) throw new InternalError(error.message);
+  return data ?? [];
 }
 
 // Admin: list all requests for review queue

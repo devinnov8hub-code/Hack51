@@ -15,6 +15,7 @@ import * as candidateRepo from "../repositories/candidate.repository.js";
 import * as employerRepo from "../repositories/employer.repository.js";
 import { generateOtp, verifyOtp } from "../utils/otp.js";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
+import { isDevMode } from "../config/constants.js";
 import {
   sendEmailVerificationOtp,
   sendWelcomeEmail,
@@ -93,6 +94,19 @@ export async function registerUser(input: {
     (err) => console.error("[email] sendEmailVerificationOtp failed:", err)
   );
 
+  // DEV MODE: include the OTP in the response so the frontend dev can
+  // register & verify candidate accounts without depending on Resend
+  // (which can only send to the verified inbox on the free tier).
+  // This is forced OFF in production by the isDevMode() check.
+  if (isDevMode()) {
+    return {
+      user: safeUserPublic(user),
+      dev_otp: otp,
+      dev_note:
+        "DEV_MODE is on — this OTP is only returned in non-production. Use it directly with /auth/verify-email.",
+    };
+  }
+
   return { user: safeUserPublic(user) };
 }
 
@@ -145,6 +159,9 @@ export async function resendVerificationOtp(email: string) {
     (err) => console.error("[email] resendVerificationOtp failed:", err)
   );
 
+  if (isDevMode()) {
+    return { message: "Verification code resent", dev_otp: otp };
+  }
   return { message: "Verification code resent" };
 }
 
@@ -257,6 +274,12 @@ export async function forgotPassword(email: string) {
     (err) => console.error("[email] sendPasswordResetOtp failed:", err)
   );
 
+  if (isDevMode()) {
+    return {
+      message: "If that email is registered, a reset code has been sent.",
+      dev_otp: otp,
+    };
+  }
   return { message: "If that email is registered, a reset code has been sent." };
 }
 

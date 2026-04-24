@@ -204,7 +204,22 @@ const openApiDoc = {
     "/health": { get: { tags: ["Auth"], summary: "Health check", responses: { 200: { description: "OK" } } } },
 
     // ── SHARED AUTH ─────────────────────────────────────────────────────────
-    "/auth/register":         { post: { tags: ["Auth"], summary: "Register (candidate or employer)", requestBody: { required: true, content: { "application/json": { example: { email: "user@example.com", password: "SecurePass1!", role: "candidate", first_name: "Ada", last_name: "Lovelace" } } } }, responses: { 201: { description: "Account created, 6-digit OTP sent" }, 409: { description: "Email already exists" }, 422: { description: "Validation error" } } } },
+    "/auth/register": {
+      post: {
+        tags: ["Auth"],
+        summary: "Register (candidate or employer)",
+        description: "Creates an unverified account and emails a 6-digit OTP. **DEV MODE:** when `DEV_MODE=true` (default in non-production), the response also includes `data.dev_otp` so you can test without depending on email delivery. The frontend dev should look for this field and use it directly with /auth/verify-email when emails aren't reaching the inbox (e.g. Resend free-tier sandbox).",
+        requestBody: {
+          required: true,
+          content: { "application/json": { example: { email: "user@example.com", password: "SecurePass1!", role: "candidate", first_name: "Ada", last_name: "Lovelace" } } },
+        },
+        responses: {
+          201: { description: "Account created. Response: { user, dev_otp?, dev_note? } — dev_otp only present when DEV_MODE is on." },
+          409: { description: "Email already exists" },
+          422: { description: "Validation error" },
+        },
+      },
+    },
     "/auth/verify-email":     { post: { tags: ["Auth"], summary: "Verify email with 6-digit OTP", requestBody: { required: true, content: { "application/json": { example: { email: "user@example.com", otp: "482913" } } } }, responses: { 200: { description: "Email verified, welcome email sent" }, 400: { description: "Invalid or expired OTP" } } } },
     "/auth/resend-otp":       { post: { tags: ["Auth"], summary: "Resend verification OTP", requestBody: { required: true, content: { "application/json": { example: { email: "user@example.com" } } } }, responses: { 200: { description: "OTP resent" } } } },
     "/auth/login":            { post: { tags: ["Auth"], summary: "Login (any role)", requestBody: { required: true, content: { "application/json": { example: { email: "user@example.com", password: "SecurePass1!" } } } }, responses: { 200: { description: "Tokens + user" }, 401: { description: "Invalid credentials" }, 403: { description: "Email not verified or account inactive" } } } },
@@ -219,6 +234,21 @@ const openApiDoc = {
     "/admin/auth/login":  { post: { tags: ["Admin – Auth"], summary: "Admin login", requestBody: { required: true, content: { "application/json": { example: { email: "admin@hack51.com", password: "Admin@Hack51!" } } } }, responses: { 200: { description: "Tokens + admin user" }, 403: { description: "Not an admin role" } } } },
     "/admin/auth/me":     { get:  { tags: ["Admin – Auth"], summary: "Get admin profile", security: [{ bearerAuth: [] }], responses: { 200: { description: "Admin profile" } } } },
     "/admin/auth/create": { post: { tags: ["Admin – Auth"], summary: "Create admin account (system_admin only)", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { email: "reviewer@hack51.com", password: "SecurePass1!", role: "admin_reviewer", first_name: "Jane" } } } }, responses: { 201: { description: "Admin created, OTP emailed" }, 403: { description: "Only system_admin can create admin accounts" } } } },
+
+    // NEW: Dev-only OTP inspection — auto-disabled in production
+    "/admin/dev/otp-info/{email}": {
+      get: {
+        tags: ["Admin – Auth"],
+        summary: "DEV ONLY: Look up a user's verification status & recent OTP activity",
+        description: "Returns 403 DEV_MODE_DISABLED in production. Useful when emails are not reaching the inbox (e.g. Resend free-tier limit). To get the actual OTP code, call POST /auth/resend-otp — when DEV_MODE is on, the code is in the response. This endpoint is admin-protected and shows the user's verification status plus the last 5 OTPs (purpose, expires_at, used_at) without exposing the plaintext codes (storage is hashed).",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "User info + recent OTPs + instructions" },
+          403: { description: "DEV_MODE_DISABLED — only enabled when DEV_MODE=true and NODE_ENV != production" },
+          404: { description: "USER_NOT_FOUND" },
+        },
+      },
+    },
 
     // ── ADMIN PROFILE & DASHBOARD ───────────────────────────────────────────
     "/admin/profile":   { get: { tags: ["Admin – Profile"], summary: "Get admin profile", security: [{ bearerAuth: [] }], responses: { 200: { description: "Profile" } } }, patch: { tags: ["Admin – Profile"], summary: "Update name, avatar, or password", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { first_name: "Elvis", old_password: "Admin@Hack51!", new_password: "NewAdmin@51!" } } } }, responses: { 200: { description: "Updated" } } } },
@@ -275,7 +305,7 @@ const openApiDoc = {
     "/admin/notifications/mark-read": { post: { tags: ["Admin – Notifications"], summary: "Mark notifications read — body { ids: [uuid] } or omit", security: [{ bearerAuth: [] }], responses: { 200: { description: "Marked" } } } },
 
     // ── EMPLOYER AUTH + PROFILE + DASHBOARD + WORKSPACE ─────────────────────
-    "/employer/auth/register": { post: { tags: ["Employer – Auth"], summary: "Register as employer", requestBody: { required: true, content: { "application/json": { example: { email: "cto@startup.com", password: "SecurePass1!", role: "employer", first_name: "John", last_name: "Doe" } } } }, responses: { 201: { description: "Account created, OTP sent" } } } },
+    "/employer/auth/register": { post: { tags: ["Employer – Auth"], summary: "Register as employer", description: "Same behaviour as /auth/register but role-locked to employer. **DEV MODE:** response includes `data.dev_otp` when `DEV_MODE=true`.", requestBody: { required: true, content: { "application/json": { example: { email: "cto@startup.com", password: "SecurePass1!", role: "employer", first_name: "John", last_name: "Doe" } } } }, responses: { 201: { description: "Account created. Includes dev_otp in dev mode." } } } },
     "/employer/auth/login":    { post: { tags: ["Employer – Auth"], summary: "Employer login", requestBody: { required: true, content: { "application/json": { example: { email: "cto@startup.com", password: "SecurePass1!" } } } }, responses: { 200: { description: "Tokens + employer user" } } } },
     "/employer/profile":       { get: { tags: ["Employer – Workspace"], summary: "Get employer profile", security: [{ bearerAuth: [] }], responses: { 200: { description: "Profile" } } }, patch: { tags: ["Employer – Workspace"], summary: "Update name/avatar/password", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { first_name: "John", old_password: "SecurePass1!", new_password: "NewSecure1!" } } } }, responses: { 200: { description: "Updated" } } } },
     "/employer/dashboard":     { get: { tags: ["Employer – Dashboard"], summary: "Employer overview stats", security: [{ bearerAuth: [] }], responses: { 200: { description: "Dashboard data" } } } },
@@ -298,20 +328,112 @@ const openApiDoc = {
       patch:  { tags: ["Employer – Requests"], summary: "Update draft — any field including custom_rubric", security: [{ bearerAuth: [] }], responses: { 200: { description: "Updated" } } },
       delete: { tags: ["Employer – Requests"], summary: "Close request", security: [{ bearerAuth: [] }], responses: { 200: { description: "Closed" } } },
     },
-    "/employer/requests/{id}/publish": { post: { tags: ["Employer – Requests"], summary: "Publish request — locks rubric snapshot, initiates deposit payment", description: "If custom_rubric was set on the request, it is used as the locked rubric snapshot. Otherwise the challenge's default rubric is used.", security: [{ bearerAuth: [] }], responses: { 200: { description: "Published. payment.authorization_url returned." } } } },
+    "/employer/requests/{id}/publish": {
+      post: {
+        tags: ["Employer – Requests"],
+        summary: "Publish request — locks rubric snapshot, initiates payment",
+        description: "Behaviour depends on SKIP_PAYMENT env flag. When true (default in non-production), the request goes straight to `published` and the payment is auto-marked success. The response includes `payment.skip: true` so the frontend can skip the redirect. When false (production), Paystack is called and `payment.authorization_url` must be redirected to.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "Published. Response: { request, payment: { authorization_url, skip, status } }" },
+          400: { description: "NOT_DRAFT or NO_CHALLENGE or RUBRIC_WEIGHT_INVALID" },
+        },
+      },
+    },
+
+    // NEW: List submissions for one of the employer's own requests
+    "/employer/requests/{id}/submissions": {
+      get: {
+        tags: ["Employer – Requests"],
+        summary: "List submissions for one of your requests",
+        description: "Returns every candidate who has submitted to this request, with status, submitted_at, total_score (if scored), and basic candidate info. Artifact URLs and reviewer notes are NOT included until the shortlist is delivered — use /employer/shortlists/:id for that.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "Array of submissions" },
+          404: { description: "REQUEST_NOT_FOUND — request does not exist or is not yours" },
+        },
+      },
+    },
+
+    // NEW: Rerun a previous request as a fresh draft
+    "/employer/requests/{id}/rerun": {
+      post: {
+        tags: ["Employer – Requests"],
+        summary: "Duplicate a previous request as a new draft",
+        description: "Mirrors the 'Rerun request' button on the shortlist detail page (Figma screen 13). Creates a new draft preserving title (with ' (rerun)' suffix), challenge, role_type, role_level, cap, shortlist_size, and custom_rubric. Deadline is intentionally NOT carried over — set a fresh one before publishing.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          201: { description: "New draft request created" },
+          404: { description: "REQUEST_NOT_FOUND" },
+        },
+      },
+    },
 
     // ── EMPLOYER SHORTLISTS / BILLING / PAYMENTS ────────────────────────────
-    "/employer/shortlists":                   { get: { tags: ["Employer – Shortlists"], summary: "All delivered shortlists", security: [{ bearerAuth: [] }], responses: { 200: { description: "Shortlists" } } } },
-    "/employer/shortlists/{id}":              { get: { tags: ["Employer – Shortlists"], summary: "Single shortlist with evidence pack", security: [{ bearerAuth: [] }], responses: { 200: { description: "Evidence pack" } } } },
-    "/employer/billing":                      { get: { tags: ["Employer – Billing"], summary: "Billing history", security: [{ bearerAuth: [] }], responses: { 200: { description: "Billing data" } } } },
-    "/employer/payments/initiate":            { post: { tags: ["Employer – Billing"], summary: "Initiate Paystack payment", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { amount_ngn: 4580000, job_request_id: "uuid", payment_type: "deposit" } } } }, responses: { 200: { description: "authorization_url returned" } } } },
-    "/employer/payments/verify/{reference}":  { get:  { tags: ["Employer – Billing"], summary: "Verify payment", security: [{ bearerAuth: [] }], responses: { 200: { description: "Payment status" } } } },
-    "/employer/payments/history":             { get:  { tags: ["Employer – Billing"], summary: "Payment history", security: [{ bearerAuth: [] }], responses: { 200: { description: "Payments" } } } },
+    "/employer/shortlists":     { get: { tags: ["Employer – Shortlists"], summary: "All delivered shortlists", security: [{ bearerAuth: [] }], responses: { 200: { description: "Shortlists" } } } },
+    "/employer/shortlists/{id}":{ get: { tags: ["Employer – Shortlists"], summary: "Single shortlist with evidence pack (top-N)", security: [{ bearerAuth: [] }], responses: { 200: { description: "Evidence pack of shortlisted candidates only" } } } },
+
+    // NEW: Pay-to-unlock the full talent list
+    "/employer/shortlists/{id}/unlock": {
+      post: {
+        tags: ["Employer – Shortlists"],
+        summary: "Pay to unlock the full talent list (Figma screen 14)",
+        description: "Initiates a payment to access EVERY scored candidate, not just the top-N shortlist. Cost defaults to ₦240,000 (configurable via FULL_LIST_UNLOCK_NGN env var). Behaviour depends on SKIP_PAYMENT — see /publish for the same pattern. Returns 400 SHORTLIST_NOT_DELIVERED if the shortlist is not yet in `shortlisted` status.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "Payment initiated. Response: { request_id, amount_ngn, payment: {...skip}, unlocked }" },
+          400: { description: "SHORTLIST_NOT_DELIVERED" },
+        },
+      },
+    },
+
+    // NEW: Read the full candidate list once unlocked
+    "/employer/shortlists/{id}/full-list": {
+      get: {
+        tags: ["Employer – Shortlists"],
+        summary: "Get every scored candidate — requires unlock payment",
+        description: "Returns every scored submission ranked by total_score, including those not in the top-N shortlist. Returns 400 FULL_LIST_LOCKED if the unlock fee has not been paid.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: "Full ranked list of scored candidates" },
+          400: { description: "FULL_LIST_LOCKED — call /shortlists/:id/unlock first" },
+        },
+      },
+    },
+
+    // NEW: Export the shortlist as CSV
+    "/employer/shortlists/{id}/export.csv": {
+      get: {
+        tags: ["Employer – Shortlists"],
+        summary: "Download the shortlist as CSV",
+        description: "Returns text/csv (NOT the JSON envelope) with Content-Disposition attachment. Columns: rank, candidate_name, email, total_score, artifact_urls, reviewer_notes.",
+        security: [{ bearerAuth: [] }],
+        responses: { 200: { description: "CSV file download" } },
+      },
+    },
+
+    "/employer/billing": { get: { tags: ["Employer – Billing"], summary: "Billing history (all requests)", security: [{ bearerAuth: [] }], responses: { 200: { description: "Billing data with summary, requests, settlements, payments" } } } },
+
+    // NEW: Per-request billing detail
+    "/employer/billing/{id}": {
+      get: {
+        tags: ["Employer – Billing"],
+        summary: "Billing breakdown for one request (Figma screen 15 right)",
+        description: "Returns line items (admin_setup_fee, prepaid_deposit, final_charge, credit_returned, full_list_unlock) plus full transaction history for that request, plus the settlement record once delivered.",
+        security: [{ bearerAuth: [] }],
+        responses: { 200: { description: "Per-request billing breakdown" } },
+      },
+    },
+
+    "/employer/payments/initiate":            { post: { tags: ["Employer – Billing"], summary: "Initiate Paystack payment (manual, for ad-hoc top-ups)", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { amount_ngn: 4580000, job_request_id: "uuid", payment_type: "deposit" } } } }, responses: { 200: { description: "authorization_url returned" } } } },
+    "/employer/payments/verify/{reference}":  { get:  { tags: ["Employer – Billing"], summary: "Verify a payment by reference", security: [{ bearerAuth: [] }], responses: { 200: { description: "Payment status" } } } },
+    "/employer/payments/history":             { get:  { tags: ["Employer – Billing"], summary: "All payments by this employer", security: [{ bearerAuth: [] }], responses: { 200: { description: "Payments array" } } } },
+
     "/employer/notifications":                { get:  { tags: ["Employer – Notifications"], summary: "Notifications — ?unread=true", security: [{ bearerAuth: [] }], responses: { 200: { description: "Notifications + unread count" } } } },
     "/employer/notifications/mark-read":      { post: { tags: ["Employer – Notifications"], summary: "Mark notifications read", security: [{ bearerAuth: [] }], responses: { 200: { description: "Marked" } } } },
 
     // ── CANDIDATE ───────────────────────────────────────────────────────────
-    "/candidate/auth/register": { post: { tags: ["Candidate – Auth"], summary: "Register as candidate", requestBody: { required: true, content: { "application/json": { example: { email: "talent@example.com", password: "SecurePass1!", role: "candidate", first_name: "Ada", last_name: "Lovelace" } } } }, responses: { 201: { description: "Account created, OTP sent" } } } },
+    "/candidate/auth/register": { post: { tags: ["Candidate – Auth"], summary: "Register as candidate", description: "Same behaviour as /auth/register but role-locked to candidate. **DEV MODE:** response includes `data.dev_otp` when `DEV_MODE=true` — use this to test candidate accounts without depending on email delivery.", requestBody: { required: true, content: { "application/json": { example: { email: "talent@example.com", password: "SecurePass1!", role: "candidate", first_name: "Ada", last_name: "Lovelace" } } } }, responses: { 201: { description: "Account created. Includes dev_otp in dev mode." } } } },
     "/candidate/auth/login":    { post: { tags: ["Candidate – Auth"], summary: "Candidate login", requestBody: { required: true, content: { "application/json": { example: { email: "talent@example.com", password: "SecurePass1!" } } } }, responses: { 200: { description: "Tokens + candidate user" } } } },
     "/candidate/challenges":      { get: { tags: ["Candidate – Challenges"], summary: "Browse open challenges — NO AUTH. ?search=keyword", responses: { 200: { description: "Published requests" } } } },
     "/candidate/challenges/{id}": { get: { tags: ["Candidate – Challenges"], summary: "Challenge detail — NO AUTH", responses: { 200: { description: "Full challenge detail" } } } },

@@ -82,3 +82,25 @@ export async function findPaymentByReference(reference: string): Promise<Payment
   if (error) throw new InternalError(`Failed to find payment: ${error.message}`);
   return data as PaymentRow;
 }
+
+/**
+ * Find the most recent full-list unlock payment for a request, by employer.
+ * Used to check whether the employer has paid to see all scored candidates
+ * (Figma screen 14). Returns null if no payment has been initiated.
+ */
+export async function findFullListUnlockPayment(
+  jobRequestId: string,
+  userId: string,
+): Promise<PaymentRow | null> {
+  const { data, error } = await supabase
+    .from("payments")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("job_request_id", jobRequestId)
+    .eq("payment_type", "full_list_unlock")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new InternalError(`Failed to find unlock payment: ${error.message}`);
+  return data as PaymentRow | null;
+}

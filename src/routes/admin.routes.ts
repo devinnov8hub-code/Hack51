@@ -30,6 +30,14 @@ adminRouter.post("/auth/login", authRateLimit, validateBody(LoginSchema), AdminC
 adminRouter.get( "/auth/me",     authMiddleware, isAdmin, AdminController.getMe);
 adminRouter.post("/auth/create", strictRateLimit, authMiddleware, isSysAdmin, validateBody(CreateAdminSchema), AdminController.createAdmin);
 
+// ── DEV-ONLY (auto-disabled when NODE_ENV=production) ────────────────────────
+// Admin can look up any user's verification status + recent OTP info, useful
+// when the frontend dev cannot receive emails on the test environment. The
+// endpoint returns 403 in production. To get the actual OTP code in dev, call
+// POST /auth/resend-otp — when DEV_MODE is on, the code is returned in the
+// response body.
+adminRouter.get("/dev/otp-info/:email", authMiddleware, isAdmin, AdminController.getDevOtpInfo);
+
 // ── Profile & Settings ────────────────────────────────────────────────────────
 adminRouter.get(  "/profile", authMiddleware, isAdmin, ProfileController.getProfile);
 adminRouter.patch("/profile", authMiddleware, isAdmin, validateBody(UpdateProfileSchema), ProfileController.updateProfile);
