@@ -84,7 +84,12 @@ export const JobRequestController = {
     if ((req as any).status !== "draft") {
       throw new BadRequestError("Only draft requests can be published.", "NOT_DRAFT");
     }
-    if (!(req as any).challenge_id) {
+    // Accept either the scalar column OR the joined relation. Both should
+    // be present after the v1.2.1 select fix in job-request.repository.ts,
+    // but checking both makes us resilient to future select changes.
+    const reqAny = req as any;
+    const hasChallenge = Boolean(reqAny.challenge_id || reqAny.challenges?.id);
+    if (!hasChallenge) {
       throw new BadRequestError("Select a challenge before publishing.", "NO_CHALLENGE");
     }
 

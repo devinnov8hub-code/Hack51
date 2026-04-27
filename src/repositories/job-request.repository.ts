@@ -12,7 +12,7 @@ type CustomRubricRow = {
 
 export async function listJobRequests(employerId: string, status?: string, draftsOnly = false) {
   let q = supabase.from("job_requests").select(`
-    id, title, role_type, role_level, status, challenge_cap,
+    id, title, role_type, role_level, status, challenge_id, challenge_cap,
     shortlist_size, deadline, deposit_amount, admin_fee,
     final_charge, published_at, created_at, updated_at,
     challenges(id, title)
@@ -26,7 +26,7 @@ export async function listJobRequests(employerId: string, status?: string, draft
 
 export async function getJobRequest(id: string, employerId?: string) {
   let q = supabase.from("job_requests").select(`
-    id, title, role_type, role_level, status, challenge_cap,
+    id, title, role_type, role_level, status, challenge_id, challenge_cap,
     shortlist_size, deadline, deposit_amount, admin_fee, final_charge,
     snapshot_challenge, snapshot_rubric, custom_rubric,
     published_at, closed_at, created_at, updated_at,
