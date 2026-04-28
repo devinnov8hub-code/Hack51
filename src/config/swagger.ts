@@ -172,6 +172,23 @@ const openApiDoc = {
         description: "Paste ONLY the access_token (no 'Bearer ' prefix)",
       },
     },
+    parameters: {
+      // Reusable path parameters. Any endpoint with a {xxx} placeholder
+      // in its URL needs a matching parameter declared, otherwise Swagger UI
+      // does not render an input field — and "Try it out" sends the literal
+      // "{xxx}" string to the server, which produces a 500 from Postgres.
+      // The buildPaths() pass at the bottom of this file auto-injects the
+      // right parameter ref into every path that has a placeholder, so we
+      // never have to remember to add them per-endpoint.
+      idPath:           { name: "id",           in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "Resource UUID" },
+      requestIdPath:    { name: "requestId",    in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "Job request UUID" },
+      userIdPath:       { name: "userId",       in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "User UUID" },
+      submissionIdPath: { name: "submissionId", in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "Submission UUID" },
+      challengeIdPath:  { name: "challengeId",  in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "Challenge UUID" },
+      candidateIdPath:  { name: "candidateId",  in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "Candidate UUID" },
+      referencePath:    { name: "reference",    in: "path", required: true, schema: { type: "string" }, description: "Payment reference (e.g. H51-...)" },
+      emailPath:        { name: "email",        in: "path", required: true, schema: { type: "string", format: "email" }, description: "User email address" },
+    },
   },
   tags: [
     { name: "Auth",                     description: "Shared auth — register, verify, login, refresh, reset password" },
@@ -453,6 +470,64 @@ const openApiDoc = {
     "/payments/webhook": { post: { tags: ["Payments"], summary: "Paystack webhook — Paystack-only, auth via x-paystack-signature", parameters: [{ in: "header", name: "x-paystack-signature", required: true, schema: { type: "string" }, description: "HMAC-SHA512 signature of the raw body" }], responses: { 200: { description: "Received" } } } },
   },
 };
+
+/**
+ * Auto-inject `parameters` for any path that contains `{xxx}` placeholders.
+ *
+ * Without this, Swagger UI does not render an input box for path parameters
+ * and "Try it out" sends the literal "{requestId}" string to the server,
+ * which causes Postgres errors. Rather than remember to manually add
+ * `parameters` to every endpoint definition, we walk the paths object once
+ * at startup and inject the right parameter ref(s) based on the placeholders
+ * in the URL.
+ */
+function autoInjectPathParameters(spec: typeof openApiDoc): void {
+  // Map placeholder name → component parameter ref name
+  const PLACEHOLDER_TO_PARAM: Record<string, string> = {
+    id: "idPath",
+    requestId: "requestIdPath",
+    userId: "userIdPath",
+    submissionId: "submissionIdPath",
+    challengeId: "challengeIdPath",
+    candidateId: "candidateIdPath",
+    reference: "referencePath",
+    email: "emailPath",
+  };
+
+  for (const [path, pathItem] of Object.entries(spec.paths) as [string, any][]) {
+    // Find every {xxx} placeholder in the URL
+    const placeholders = [...path.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+    if (placeholders.length === 0) continue;
+
+    // Build the params array for this path
+    const pathParams = placeholders
+      .map((name) => PLACEHOLDER_TO_PARAM[name])
+      .filter(Boolean)
+      .map((refName) => ({ $ref: `#/components/parameters/${refName}` }));
+
+    if (pathParams.length === 0) continue;
+
+    // Apply to every method on this path (get, post, put, patch, delete)
+    for (const method of ["get", "post", "put", "patch", "delete"] as const) {
+      const op = pathItem[method];
+      if (!op) continue;
+      const existing = Array.isArray(op.parameters) ? op.parameters : [];
+      // Don't duplicate — only add path params not already declared
+      const existingNames = new Set(
+        existing
+          .map((p: any) => (p.$ref ? p.$ref.split("/").pop() : p.name))
+          .filter(Boolean),
+      );
+      const toAdd = pathParams.filter(
+        (p) => !existingNames.has(p.$ref.split("/").pop()),
+      );
+      op.parameters = [...existing, ...toAdd];
+    }
+  }
+}
+
+// Run the injection pass once at module load.
+autoInjectPathParameters(openApiDoc);
 
 export function setupSwagger(app: Hono) {
   app.get("/openapi.json", (c) => c.json(openApiDoc));

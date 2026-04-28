@@ -8,6 +8,7 @@ import { employerRouter } from "./routes/employer.routes.js";
 import { candidateRouter } from "./routes/candidate.routes.js";
 import { paymentRouter } from "./routes/payment.routes.js";
 import { setupSwagger } from "./config/swagger.js";
+import { uuidPathValidator } from "./middleware/uuid-validator.middleware.js";
 import { AppError } from "./exceptions/AppError.js";
 import { errorResponse } from "./types/api-response.js";
 import { ZodError } from "zod";
@@ -46,6 +47,12 @@ app.get("/health", (c) => c.json({ status: "success", message: "OK", data: { upt
 
 // ─── Swagger ──────────────────────────────────────────────────────────────────
 setupSwagger(app);
+
+// ─── Path-param UUID validation ───────────────────────────────────────────────
+// Catches malformed UUIDs in :id, :requestId, :userId, etc. and returns a
+// clean 400 INVALID_UUID instead of letting them flow into Postgres and
+// produce a 500 with a leaked database error message.
+app.use("*", uuidPathValidator);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.route("/auth",      authRouter);
