@@ -54,13 +54,13 @@ const ROLE_UPDATE_EXAMPLE = {
   is_active: true,
   skill_levels: ["mid-level", "senior"],
   capabilities: [
-    { id: "existing-capability-uuid", title: "API Design", summary: "Updated summary" },
+    { id: "11111111-1111-1111-1111-111111111111", title: "API Design", summary: "Updated summary" },
     { title: "System Design", summary: "New capability added" },
   ],
 };
 
 const CHALLENGE_CREATE_EXAMPLE = {
-  catalog_role_id: "uuid-here",
+  catalog_role_id: "11111111-1111-1111-1111-111111111111",
   title: "API Optimization Challenge",
   summary: "Improve a sluggish REST API",
   scenario: "Your team manages a backend API...",
@@ -79,7 +79,7 @@ const CHALLENGE_UPDATE_EXAMPLE = {
   title: "Updated Challenge Title",
   is_active: true,
   rubric_criteria: [
-    { id: "existing-criterion-uuid", title: "Code Quality", description: "Updated", weight: 40 },
+    { id: "11111111-1111-1111-1111-111111111111", title: "Code Quality", description: "Updated", weight: 40 },
     { title: "New Criterion", description: "Newly added", weight: 60 },
   ],
 };
@@ -88,7 +88,7 @@ const REQUEST_CREATE_EXAMPLE = {
   title: "Senior Product Designer",
   role_type: "Product Designer",
   role_level: "senior",
-  challenge_id: "uuid-from-catalog",
+  challenge_id: "11111111-1111-1111-1111-111111111111",
   challenge_cap: 21,
   shortlist_size: 5,
   deadline: "2026-06-01T00:00:00Z",
@@ -110,7 +110,7 @@ const PROPOSE_ROLE_EXAMPLE = {
 };
 
 const PROPOSE_CHALLENGE_EXAMPLE = {
-  catalog_role_id: "uuid-of-existing-or-proposed-role",
+  catalog_role_id: "11111111-1111-1111-1111-111111111111",
   title: "Growth Funnel Audit Challenge",
   summary: "Audit a sample funnel and propose improvements",
   scenario: "You've been hired as a consultant for...",
@@ -290,13 +290,13 @@ Every response uses this envelope:
     "/admin/review/requests":                              { get:  { tags: ["Admin – Review"], summary: "Active request queue — ?status=published|evaluating|shortlisted", security: [{ bearerAuth: [] }], responses: { 200: { description: "Requests with employer and company info" } } } },
     "/admin/review/requests/{requestId}/submissions":      { get:  { tags: ["Admin – Review"], summary: "All submissions for a request with status stats", security: [{ bearerAuth: [] }], responses: { 200: { description: "Stats + submissions list" } } } },
     "/admin/review/submissions/{id}":                      { get:  { tags: ["Admin – Review"], summary: "Full submission detail", security: [{ bearerAuth: [] }], responses: { 200: { description: "Submission detail" } } } },
-    "/admin/review/submissions/{id}/triage":               { post: { tags: ["Admin – Review"], summary: "Triage submission", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { decision: "valid", reason: "All deliverables present" } } } }, responses: { 200: { description: "Triaged" } } } },
-    "/admin/review/submissions/{id}/score":                { post: { tags: ["Admin – Review"], summary: "Score submission — total_score auto-calculated as weighted sum", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { scores: [{ criterion_id: "uuid", criterion_title: "Code Quality", weight: 30, score_percent: 85 }, { criterion_id: "uuid2", criterion_title: "Code Technicality", weight: 30, score_percent: 90 }, { criterion_id: "uuid3", criterion_title: "Code Functionality", weight: 40, score_percent: 80 }], reviewer_notes: "Strong technical proficiency." } } } }, responses: { 200: { description: "Scored" } } } },
+    "/admin/review/submissions/{id}/triage":               { post: { tags: ["Admin – Review"], summary: "Triage submission", description: "Mark a submission as valid (→ under_review), invalid (→ rejected) or returned (→ candidate can resubmit). The candidate is notified after every triage decision.", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { decision: "valid", reason: "All deliverables present" } } } }, responses: { 200: { description: "Triaged" }, 404: { description: "SUBMISSION_NOT_FOUND" } } } },
+    "/admin/review/submissions/{id}/score":                { post: { tags: ["Admin – Review"], summary: "Score submission — total_score auto-calculated as weighted sum", description: "Replace the `criterion_id` values with real UUIDs from the request's `snapshot_rubric` (which you get from `GET /admin/review/submissions/{id}` → `data.job_requests.snapshot_rubric[*].id`). The example UUIDs below are illustrative.", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { scores: [{ criterion_id: "f19eb0b4-8d94-4d9b-9e27-958492985d70", criterion_title: "Code Quality", weight: 30, score_percent: 85 }, { criterion_id: "15cf1549-ca33-4faa-b9ce-440c2fe29d2c", criterion_title: "Code Technicality", weight: 30, score_percent: 90 }, { criterion_id: "5453462c-e081-42b6-997d-b42b90fe428b", criterion_title: "Code Functionality", weight: 40, score_percent: 80 }], reviewer_notes: "Strong technical proficiency." } } } }, responses: { 200: { description: "Scored" }, 404: { description: "SUBMISSION_NOT_FOUND" }, 422: { description: "VALIDATION_ERROR — criterion_id must be a real UUID" } } } },
 
     "/admin/review/shortlists":                            { get:  { tags: ["Admin – Review"], summary: "Shortlist queue", security: [{ bearerAuth: [] }], responses: { 200: { description: "Shortlist jobs" } } } },
     "/admin/review/shortlists/{requestId}/candidates":     { get:  { tags: ["Admin – Review"], summary: "Scored candidates ranked by total_score", security: [{ bearerAuth: [] }], responses: { 200: { description: "Ranked candidates" } } } },
-    "/admin/review/shortlists/{requestId}/confirm":        { post: { tags: ["Admin – Review"], summary: "Confirm top-N shortlist (admin_lead+)", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { selections: [{ candidate_id: "uuid", submission_id: "uuid", rank: 1 }, { candidate_id: "uuid2", submission_id: "uuid2", rank: 2 }, { candidate_id: "uuid3", submission_id: "uuid3", rank: 3 }] } } } }, responses: { 200: { description: "Shortlist confirmed" } } } },
-    "/admin/review/shortlists/{requestId}/deliver":        { post: { tags: ["Admin – Review"], summary: "Deliver shortlist — settlement record created, employer notified", security: [{ bearerAuth: [] }], responses: { 200: { description: "Delivered with final_charge and credit_returned" } } } },
+    "/admin/review/shortlists/{requestId}/confirm":        { post: { tags: ["Admin – Review"], summary: "Confirm top-N shortlist (admin_lead+)", description: "Replace the `candidate_id` and `submission_id` values with real UUIDs from `GET /admin/review/shortlists/{requestId}/candidates`. The example UUIDs below are illustrative. Calling this endpoint with a non-empty selection moves those submissions to `shortlisted` status. Last call wins (idempotent) — you can re-confirm a different selection until you call `/deliver`.", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { selections: [{ candidate_id: "11111111-1111-1111-1111-111111111111", submission_id: "22222222-2222-2222-2222-222222222222", rank: 1 }, { candidate_id: "33333333-3333-3333-3333-333333333333", submission_id: "44444444-4444-4444-4444-444444444444", rank: 2 }, { candidate_id: "55555555-5555-5555-5555-555555555555", submission_id: "66666666-6666-6666-6666-666666666666", rank: 3 }] } } } }, responses: { 200: { description: "Shortlist confirmed" }, 400: { description: "EMPTY_SHORTLIST — selections array cannot be empty" }, 422: { description: "VALIDATION_ERROR — candidate_id / submission_id must be real UUIDs" } } } },
+    "/admin/review/shortlists/{requestId}/deliver":        { post: { tags: ["Admin – Review"], summary: "Deliver shortlist — settlement record created, employer notified", description: "One-shot. Requires that you have already called `/confirm` with a non-empty selection. The deliver pass stamps `delivered_at` on every shortlist row, moves the request to `shortlisted`, creates the settlement record (final_charge = admin_fee + delivered_count × unit_price, with the remainder returned to the employer as credit), and sends the employer an in-app notification.", security: [{ bearerAuth: [] }], responses: { 200: { description: "Delivered with final_charge and credit_returned" }, 400: { description: "NO_CONFIRMED_SHORTLIST — call `/confirm` first | ALREADY_DELIVERED — request is already in `shortlisted` status" }, 404: { description: "REQUEST_NOT_FOUND" } } } },
 
     // ── ADMIN WALLET + NOTIFICATIONS ────────────────────────────────────────
     "/admin/wallet":                  { get: { tags: ["Admin – Wallet"], summary: "Revenue overview + transactions — ?filter=oldest|latest|successful|failed", security: [{ bearerAuth: [] }], responses: { 200: { description: "Wallet data" } } } },
@@ -396,7 +396,7 @@ Every response uses this envelope:
         responses: { 200: { description: "Per-request billing breakdown" } },
       },
     },
-    "/employer/payments/initiate":            { post: { tags: ["Employer – Billing"], summary: "Initiate Paystack payment", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { amount_ngn: 4580000, job_request_id: "uuid", payment_type: "deposit" } } } }, responses: { 200: { description: "authorization_url returned" } } } },
+    "/employer/payments/initiate":            { post: { tags: ["Employer – Billing"], summary: "Initiate Paystack payment", description: "Replace `job_request_id` with the real UUID of the request you're paying for. The example UUID below is illustrative.", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { example: { amount_ngn: 4580000, job_request_id: "11111111-1111-1111-1111-111111111111", payment_type: "deposit" } } } }, responses: { 200: { description: "authorization_url returned" } } } },
     "/employer/payments/verify/{reference}":  { get:  { tags: ["Employer – Billing"], summary: "Verify a payment by reference", security: [{ bearerAuth: [] }], responses: { 200: { description: "Payment status" } } } },
     "/employer/payments/history":             { get:  { tags: ["Employer – Billing"], summary: "All payments by this employer", security: [{ bearerAuth: [] }], responses: { 200: { description: "Payments" } } } },
 

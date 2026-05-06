@@ -58,9 +58,8 @@ export async function createSubmission(input: {
   submission_statement?: string;
   integrity_declared: boolean;
 }) {
-  // FIX (C1): `.single()` throws when no row exists, which was causing every
-  // first-time submission to fail. `.maybeSingle()` returns `data: null` for
-  // no match, which is what we want here.
+  // Use maybeSingle so a brand-new submission (no existing row) returns
+  // data: null instead of throwing.
   const { data: existing, error: existingErr } = await supabase.from("submissions")
     .select("id, status")
     .eq("job_request_id", input.job_request_id)
@@ -72,7 +71,7 @@ export async function createSubmission(input: {
     if (existing.status !== "returned") {
       throw new ConflictError("You have already submitted to this request", "ALREADY_SUBMITTED");
     }
-    // Resubmit path (allowed only when previous status was 'returned')
+    // Resubmit path: only allowed when the previous status was 'returned'.
     const { data, error } = await supabase.from("submissions")
       .update({
         artifact_urls: input.artifact_urls,
@@ -111,11 +110,31 @@ export async function createSubmission(input: {
   return data;
 }
 
+/**
+ * Triage a submission. The admin marks it valid (→ under_review),
+ * invalid (→ rejected) or returned (→ candidate can resubmit).
+ *
+ * FIX (v1.2.3): previously, triaging a non-existent submission id returned
+ * a 500 with a leaked Supabase error ("Cannot coerce the result to a single
+ * JSON object"). Now we look the row up first with maybeSingle() and throw
+ * a clean 404 SUBMISSION_NOT_FOUND, matching the behaviour of getSubmission.
+ */
 export async function triageSubmission(id: string, input: {
   triage_decision: "valid" | "invalid" | "returned";
   triage_reason?: string;
   triaged_by: string;
 }) {
+  // Confirm the submission exists before attempting to update it.
+  const { data: existing, error: existingErr } = await supabase
+    .from("submissions")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+  if (existingErr) throw new InternalError(existingErr.message);
+  if (!existing) {
+    throw new NotFoundError("Submission not found", "SUBMISSION_NOT_FOUND");
+  }
+
   const statusMap = { valid: "under_review", invalid: "rejected", returned: "returned" } as const;
   const { data, error } = await supabase.from("submissions")
     .update({
@@ -130,11 +149,28 @@ export async function triageSubmission(id: string, input: {
   return data;
 }
 
+/**
+ * Score a submission. Total is auto-calculated as Σ(weight × score_percent / 100).
+ *
+ * FIX (v1.2.3): same 500-on-missing-id fix as triage. Verifies the
+ * submission exists before scoring; returns 404 SUBMISSION_NOT_FOUND
+ * cleanly instead of leaking a Postgres coercion error.
+ */
 export async function scoreSubmission(id: string, input: {
   scores: { criterion_id: string; criterion_title: string; weight: number; score_percent: number }[];
   reviewer_notes?: string;
   scored_by: string;
 }) {
+  const { data: existing, error: existingErr } = await supabase
+    .from("submissions")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+  if (existingErr) throw new InternalError(existingErr.message);
+  if (!existing) {
+    throw new NotFoundError("Submission not found", "SUBMISSION_NOT_FOUND");
+  }
+
   const total = input.scores.reduce((s, c) => s + (c.weight * c.score_percent / 100), 0);
 
   await supabase.from("submission_scores").delete().eq("submission_id", id);
