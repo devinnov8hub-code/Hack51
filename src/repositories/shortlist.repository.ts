@@ -1,18 +1,25 @@
 import { supabase } from "../config/supabase.js";
 import { InternalError, NotFoundError, BadRequestError } from "../exceptions/errors.js";
-import * as notificationRepo from "./notification.repository.js";
 
 /**
- * Admin: list all requests in evaluation/shortlisted/closed status.
+ * Admin: list shortlist queue. Default returns evaluating/shortlisted/closed.
+ * If status is provided, filters to that exact status.
  */
-export async function getAdminShortlists() {
-  const { data, error } = await supabase.from("job_requests").select(`
+export async function listShortlistsAdmin(status?: string) {
+  let q = supabase.from("job_requests").select(`
     id, title, role_type, role_level, status, shortlist_size,
     deposit_amount, final_charge, published_at,
     users!employer_id(email, first_name, last_name),
     workspaces(company_name)
-  `).in("status", ["evaluating", "shortlisted", "closed"])
-    .order("published_at", { ascending: false });
+  `).order("published_at", { ascending: false });
+
+  if (status) {
+    q = q.eq("status", status);
+  } else {
+    q = q.in("status", ["evaluating", "shortlisted", "closed"]);
+  }
+
+  const { data, error } = await q;
   if (error) throw new InternalError(error.message);
   return data ?? [];
 }
@@ -39,11 +46,27 @@ export async function getScoredSubmissionsForShortlist(requestId: string) {
  * call wins, so the admin can change their mind before delivery.
  *
  * Idempotent. Does NOT notify the employer (that happens at deliver time).
+ *
+ * Signature matches review.controller.ts:97 — accepts an object with
+ * `candidate_submission_pairs` and `confirmed_by` so the admin who made
+ * the decision is recorded against each row.
  */
-export async function confirmShortlistSelections(
+export async function confirmShortlist(
   requestId: string,
-  selections: { candidate_id: string; submission_id: string; rank: number }[],
+  input: {
+    candidate_submission_pairs: { candidate_id: string; submission_id: string; rank: number }[];
+    confirmed_by: string;
+  },
 ) {
+  const { candidate_submission_pairs: pairs, confirmed_by } = input;
+
+  if (!pairs || pairs.length === 0) {
+    throw new BadRequestError(
+      "Cannot confirm an empty shortlist. Pick at least one candidate.",
+      "EMPTY_SHORTLIST",
+    );
+  }
+
   // Wipe any previous shortlist rows for this request
   await supabase.from("shortlists").delete().eq("job_request_id", requestId);
 
@@ -54,30 +77,26 @@ export async function confirmShortlistSelections(
     .eq("job_request_id", requestId)
     .eq("status", "shortlisted");
 
-  if (selections.length === 0) {
-    throw new BadRequestError(
-      "Cannot confirm an empty shortlist. Pick at least one candidate.",
-      "EMPTY_SHORTLIST",
-    );
-  }
-
-  const rows = selections.map((s) => ({
+  const nowIso = new Date().toISOString();
+  const rows = pairs.map((p) => ({
     job_request_id: requestId,
-    candidate_id: s.candidate_id,
-    submission_id: s.submission_id,
-    rank: s.rank,
-    confirmed_at: new Date().toISOString(),
-    total_score: null, // populated by the trigger / on-deliver pass
+    candidate_id: p.candidate_id,
+    submission_id: p.submission_id,
+    rank: p.rank,
+    confirmed_by,
+    confirmed_at: nowIso,
+    total_score: null, // populated by the on-deliver pass
   }));
+
   const { error: insErr } = await supabase.from("shortlists").insert(rows);
   if (insErr) throw new InternalError(insErr.message);
 
   const { error: updErr } = await supabase.from("submissions")
-    .update({ status: "shortlisted", updated_at: new Date().toISOString() })
-    .in("id", selections.map((s) => s.submission_id));
+    .update({ status: "shortlisted", updated_at: nowIso })
+    .in("id", pairs.map((p) => p.submission_id));
   if (updErr) throw new InternalError(updErr.message);
 
-  return { confirmed_count: selections.length };
+  return { confirmed_count: pairs.length };
 }
 
 /**
@@ -89,17 +108,30 @@ export async function confirmShortlistSelections(
  *     are one-shot)
  *   - At least one shortlist row must exist for this request, i.e. the
  *     admin must have called /confirm at least once with a non-empty
- *     selection. This is a critical guard that v1.2.3 added — without it,
- *     an admin could "deliver" an empty shortlist and the employer would
- *     receive a notification with nothing to look at.
+ *     selection. This guard prevents an admin from "delivering" an empty
+ *     shortlist and leaving the employer with nothing to look at.
  *
  * Side effects on success:
  *   - Stamps `delivered_at` on every shortlist row
  *   - Moves the request status to 'shortlisted'
  *   - Creates a settlement record (final_charge, credit_returned)
- *   - Sends an in-app notification to the employer
+ *
+ * NOTE: the employer notification is sent by review.controller.ts *after*
+ * this function returns — we don't double-notify here.
+ *
+ * The optional `adminId` parameter (from review.controller.ts:113) is
+ * available for audit logging if you want to attach it to the settlement
+ * record in a future migration. Currently unused but accepted so the
+ * caller's signature is satisfied.
  */
-export async function deliverShortlist(requestId: string) {
+export async function deliverShortlist(requestId: string, adminId?: string) {
+  // Currently we don't store who delivered the shortlist (settlement_records
+  // doesn't have a `delivered_by` column), but accepting the parameter
+  // keeps the signature compatible with the controller and ready for the
+  // column to be added later. Reference adminId so it isn't flagged as
+  // unused while still being a no-op.
+  void adminId;
+
   // 1. Check the request exists and is in the right state
   const { data: req, error: reqErr } = await supabase
     .from("job_requests")
@@ -116,9 +148,9 @@ export async function deliverShortlist(requestId: string) {
     );
   }
 
-  // 2. CRITICAL GUARD (v1.2.3): there must be confirmed shortlist rows
-  //    before we can deliver. Otherwise the admin would be "delivering"
-  //    nothing and the employer would get a notification with an empty list.
+  // 2. CRITICAL GUARD: there must be confirmed shortlist rows before we
+  //    can deliver. Otherwise the admin would be "delivering" nothing and
+  //    the employer would receive a notification with an empty list.
   const { data: confirmed, error: cErr } = await supabase
     .from("shortlists")
     .select("id, candidate_id, submission_id, rank")
@@ -177,18 +209,10 @@ export async function deliverShortlist(requestId: string) {
     .eq("id", requestId);
   if (chargeErr) throw new InternalError(chargeErr.message);
 
-  // 7. Notify the employer (best-effort — don't fail the call if notification fails)
-  await notificationRepo.createNotification({
-    user_id: req.employer_id,
-    title: "Your shortlist is ready",
-    body: `The shortlist for "${req.title}" has been delivered. ${confirmed.length} candidate${confirmed.length === 1 ? "" : "s"} selected. Credit returned: ₦${creditReturned.toLocaleString()}.`,
-    type: "success",
-    metadata: { job_request_id: requestId, final_charge: finalCharge, credit_returned: creditReturned },
-  }).catch((err) => {
-    console.error("[notification] failed to notify employer of shortlist delivery:", err);
-  });
-
-  // 8. Return the updated request + settlement summary
+  // 7. Return the updated request + settlement summary. The controller
+  //    is responsible for sending the "Shortlist Delivered" notification
+  //    (review.controller.ts:118-126) so we do NOT send one here — that
+  //    would create a duplicate notification for the employer.
   const { data: updated, error: getErr } = await supabase
     .from("job_requests")
     .select("*, snapshot_challenge, snapshot_rubric")
