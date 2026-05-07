@@ -67,6 +67,69 @@ export async function confirmShortlist(
     );
   }
 
+  // ── Pre-flight validation ────────────────────────────────────────────────
+  // Without this, sending a non-existent candidate_id or submission_id
+  // produces a 500 with a leaked Postgres FK message:
+  //   "violates foreign key constraint shortlists_candidate_id_fkey"
+  // We catch that case first and return a clean 4xx error the frontend can
+  // branch on (CANDIDATE_NOT_FOUND / SUBMISSION_NOT_FOUND / SUBMISSION_REQUEST_MISMATCH).
+
+  // 1. Confirm the job request exists
+  const { data: req, error: reqErr } = await supabase
+    .from("job_requests")
+    .select("id")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (reqErr) throw new InternalError(reqErr.message);
+  if (!req) throw new NotFoundError("Job request not found", "REQUEST_NOT_FOUND");
+
+  // 2. Confirm every submission exists, belongs to this request, and is scored.
+  //    The shortlist can only contain submissions that are eligible
+  //    (i.e. status in scored/shortlisted — not submitted/under_review/rejected).
+  const submissionIds = pairs.map((p) => p.submission_id);
+  const { data: subs, error: subErr } = await supabase
+    .from("submissions")
+    .select("id, candidate_id, job_request_id, status")
+    .in("id", submissionIds);
+  if (subErr) throw new InternalError(subErr.message);
+
+  const foundSubIds = new Set((subs ?? []).map((s) => s.id));
+  for (const p of pairs) {
+    if (!foundSubIds.has(p.submission_id)) {
+      throw new NotFoundError(
+        `Submission ${p.submission_id} does not exist.`,
+        "SUBMISSION_NOT_FOUND",
+      );
+    }
+  }
+
+  // 3. Cross-validate: each submission must belong to this request AND
+  //    its candidate_id must match the candidate_id passed in the pair.
+  const subById = new Map((subs ?? []).map((s) => [s.id, s]));
+  for (const p of pairs) {
+    const s = subById.get(p.submission_id)!;
+    if (s.job_request_id !== requestId) {
+      throw new BadRequestError(
+        `Submission ${p.submission_id} does not belong to request ${requestId}.`,
+        "SUBMISSION_REQUEST_MISMATCH",
+      );
+    }
+    if (s.candidate_id !== p.candidate_id) {
+      throw new BadRequestError(
+        `Candidate ${p.candidate_id} did not submit submission ${p.submission_id}.`,
+        "CANDIDATE_SUBMISSION_MISMATCH",
+      );
+    }
+    if (!["scored", "shortlisted"].includes(s.status)) {
+      throw new BadRequestError(
+        `Submission ${p.submission_id} is not eligible for shortlisting (status: ${s.status}). Only scored submissions can be shortlisted.`,
+        "SUBMISSION_NOT_SCORED",
+      );
+    }
+  }
+
+  // ── End pre-flight ───────────────────────────────────────────────────────
+
   // Wipe any previous shortlist rows for this request
   await supabase.from("shortlists").delete().eq("job_request_id", requestId);
 
