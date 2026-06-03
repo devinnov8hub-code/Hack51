@@ -46,16 +46,19 @@ export default function RequestTable({
   const handlePublish = async (request_id: string, challenge_id: string) => {
     setPublishing(request_id);
     try {
-     const response = await employerService.publishRequest(request_id, challenge_id);
+      // publishRequest now returns { request, payment }.
+      // While payment is skipped (dev mode / SKIP_PAYMENT=true), we only
+      // need the request to update the UI. When Paystack is enabled later,
+      // branch on payment.skip and redirect to payment.authorization_url.
+      const { request: updatedRequest /*, payment */ } =
+        await employerService.publishRequest(request_id, challenge_id);
 
-      const updatedRequest = response;
       setRequestList((prev) =>
         prev.map((request) =>
           request.id === request_id
             ? {
                 ...request,
                 ...updatedRequest,
-                // status: "published",
               }
             : request,
         ),

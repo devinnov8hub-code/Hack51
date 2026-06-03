@@ -23,6 +23,7 @@ const DEFAULT_CORS_ORIGINS = [
   "http://localhost:3000",
   "http://localhost:3001",
   "https://hack51.vercel.app",
+  "https://hack51-main.vercel.app",
   "https://www.hack51.africa",
   "https://hack51.africa",
 ];

@@ -89,10 +89,19 @@ export async function registerUser(input: {
   const otp = generateOtp();
   await otpRepo.storeOtp(user.id, otp, OtpPurpose.EMAIL_VERIFICATION);
 
-  // Fire-and-forget email — do not block registration response
-  sendEmailVerificationOtp(user.email, user.first_name ?? "", otp).catch(
-    (err) => console.error("[email] sendEmailVerificationOtp failed:", err)
-  );
+  // Await the email send so it actually completes on Vercel serverless.
+  // Fire-and-forget gets killed when the function returns its response, so
+  // the email request never reaches Resend. Latency cost is ~300ms, well
+  // worth ensuring the user receives the OTP they need to verify.
+  try {
+    await sendEmailVerificationOtp(user.email, user.first_name ?? "", otp);
+    console.log(`[email] verification OTP sent to ${user.email}`);
+  } catch (err) {
+    console.error("[email] sendEmailVerificationOtp failed:", err);
+    // Don't fail the registration just because the email failed — the
+    // user can hit /auth/resend-otp to try again, and the row is already
+    // in the database.
+  }
 
   // DEV MODE: include the OTP in the response so the frontend dev can
   // register & verify candidate accounts without depending on Resend
@@ -136,10 +145,12 @@ export async function verifyRegistrationOtp(input: { email: string; otp: string 
     await candidateRepo.upsertCandidateProfile(user.id, {});
   }
 
-  // Send welcome email
-  sendWelcomeEmail(user.email, user.first_name ?? "", user.role).catch(
-    (err) => console.error("[email] sendWelcomeEmail failed:", err)
-  );
+  // Send welcome email — await so it actually sends on Vercel serverless.
+  try {
+    await sendWelcomeEmail(user.email, user.first_name ?? "", user.role);
+  } catch (err) {
+    console.error("[email] sendWelcomeEmail failed:", err);
+  }
 
   return { message: "Email verified successfully" };
 }
@@ -155,9 +166,12 @@ export async function resendVerificationOtp(email: string) {
   const otp = generateOtp();
   await otpRepo.storeOtp(user.id, otp, OtpPurpose.EMAIL_VERIFICATION);
 
-  sendEmailVerificationOtp(user.email, user.first_name ?? "", otp).catch(
-    (err) => console.error("[email] resendVerificationOtp failed:", err)
-  );
+  try {
+    await sendEmailVerificationOtp(user.email, user.first_name ?? "", otp);
+    console.log(`[email] resend verification OTP sent to ${user.email}`);
+  } catch (err) {
+    console.error("[email] resendVerificationOtp failed:", err);
+  }
 
   if (isDevMode()) {
     return { message: "Verification code resent", dev_otp: otp };
@@ -211,11 +225,15 @@ export async function loginUser(
   await userRepo.updateLastLogin(user.id, meta?.ip);
 
   if (isNewSignIn) {
-    sendNewSignInNotification(user.email, user.first_name ?? "", {
-      ip: meta?.ip,
-      userAgent: meta?.userAgent,
-      timestamp: new Date().toUTCString(),
-    }).catch((err) => console.error("[email] sendNewSignInNotification failed:", err));
+    try {
+      await sendNewSignInNotification(user.email, user.first_name ?? "", {
+        ip: meta?.ip,
+        userAgent: meta?.userAgent,
+        timestamp: new Date().toUTCString(),
+      });
+    } catch (err) {
+      console.error("[email] sendNewSignInNotification failed:", err);
+    }
   }
 
   return {
@@ -270,9 +288,12 @@ export async function forgotPassword(email: string) {
   const otp = generateOtp();
   await otpRepo.storeOtp(user.id, otp, OtpPurpose.PASSWORD_RESET);
 
-  sendPasswordResetOtp(user.email, user.first_name ?? "", otp).catch(
-    (err) => console.error("[email] sendPasswordResetOtp failed:", err)
-  );
+  try {
+    await sendPasswordResetOtp(user.email, user.first_name ?? "", otp);
+    console.log(`[email] password reset OTP sent to ${user.email}`);
+  } catch (err) {
+    console.error("[email] sendPasswordResetOtp failed:", err);
+  }
 
   if (isDevMode()) {
     return {
@@ -325,9 +346,11 @@ export async function resetPassword(input: { reset_token: string; new_password: 
 
   const user = await userRepo.findUserById(payload.sub);
   if (user) {
-    sendPasswordChangedNotification(user.email, user.first_name ?? "").catch(
-      (err) => console.error("[email] sendPasswordChangedNotification failed:", err)
-    );
+    try {
+      await sendPasswordChangedNotification(user.email, user.first_name ?? "");
+    } catch (err) {
+      console.error("[email] sendPasswordChangedNotification failed:", err);
+    }
   }
 
   return { message: "Password reset successfully. Please sign in with your new password." };
@@ -375,9 +398,12 @@ export async function createAdminUser(
   // Send their initial credentials email (reusing OTP flow for initial password setup)
   const otp = generateOtp();
   await otpRepo.storeOtp(user.id, otp, OtpPurpose.PASSWORD_RESET);
-  sendPasswordResetOtp(user.email, user.first_name ?? "", otp).catch(
-    (err) => console.error("[email] sendPasswordResetOtp (admin create) failed:", err)
-  );
+  try {
+    await sendPasswordResetOtp(user.email, user.first_name ?? "", otp);
+    console.log(`[email] admin account credentials sent to ${user.email}`);
+  } catch (err) {
+    console.error("[email] sendPasswordResetOtp (admin create) failed:", err);
+  }
 
   return { user: safeUserPublic(user), message: "Admin account created. Temporary code sent to email." };
 }

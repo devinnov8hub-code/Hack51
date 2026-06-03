@@ -2,6 +2,21 @@ import { LoginProps, RegisterProps, VerificationProps } from "@/types/auth";
 import api from "../api";
 import { ApiResponse } from "@/types/api";
 import { User, UserRole } from "@/types/user";
+import axios from "axios";
+
+/**
+ * Dedicated axios instance with NO interceptors, used only by refreshToken().
+ * Why: the main `api` instance has a response interceptor that calls
+ * refreshToken() on 401. If we used `api` here and the refresh itself
+ * returned 401 (expired/revoked refresh token), the interceptor would call
+ * refreshToken() again → infinite loop. Using a clean instance breaks the cycle.
+ */
+const rawApi = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_BASE_URL,
+  withCredentials: true,
+  timeout: 10000,
+  headers: { "Content-Type": "application/json" },
+});
 
 export const authService = {
   login: async (data: LoginProps) => {
@@ -67,22 +82,41 @@ export const authService = {
     return user ? JSON.parse(user) : null;
   },
 
+  /**
+   * Rotate access/refresh tokens.
+   *
+   * - Uses `rawApi` (no interceptors) so a 401 on /auth/refresh itself does
+   *   NOT trigger another refresh → no infinite loop.
+   * - Uses a relative path `/auth/refresh` because `rawApi` already has
+   *   baseURL set. (The old code did `${base_url}/auth/refresh` which
+   *   doubled the host into the URL.)
+   */
   refreshToken: async () => {
     const refreshToken = localStorage.getItem("refresh_token");
     if (!refreshToken) {
       throw new Error("No refresh token available");
     }
 
-    const base_url = process.env.NEXT_PUBLIC_BASE_URL;
-
-    const response = await api.post(`${base_url}/auth/refresh`, {
+    const res = await rawApi.post("/auth/refresh", {
       refresh_token: refreshToken,
     });
 
-    const accessToken = response.data.access_token;
-    const newNefreshToken = response.data.refresh_token;
+    // rawApi has no response interceptor, so the envelope is still here.
+    // Backend shape: { status, message, data: { access_token, refresh_token }, error }
+    const payload = res.data?.data;
+    const accessToken = payload?.access_token;
+    const newRefreshToken = payload?.refresh_token;
+
+    if (!accessToken || !newRefreshToken) {
+      throw new Error("Refresh response missing tokens");
+    }
+
     localStorage.setItem("access_token", accessToken);
-    localStorage.setItem("refresh_token", newNefreshToken);
+    localStorage.setItem("refresh_token", newRefreshToken);
+
+    // Keep cookies in sync — middleware.ts reads these
+    document.cookie = `access_token=${accessToken}; path=/`;
+    document.cookie = `refresh_token=${newRefreshToken}; path=/`;
   },
 
   isAuthenticated: () => {

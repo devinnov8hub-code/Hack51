@@ -1,16 +1,4 @@
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * Hack51 — Centralized pricing & feature flags.
- *
- * Change pricing in ONE place. The constants are read at request time
- * (not module-load) so they pick up env overrides for staging tests.
- * ─────────────────────────────────────────────────────────────────────────────
- */
 
-/**
- * Fixed admin setup fee charged on every published request.
- * Backend default: ₦800,000. Override with env ADMIN_FEE_NGN.
- */
 export function getAdminFeeNgn(): number {
   const raw = process.env.ADMIN_FEE_NGN;
   if (raw) {
@@ -91,11 +79,12 @@ export function isPaymentSkipped(): boolean {
  * AND a dev-only endpoint exists to fetch the latest OTP for an email.
  *
  * NEVER true in production. Forced OFF when NODE_ENV === "production".
+ *
+ * Default: OFF everywhere. Must be explicitly opted into with DEV_MODE=true.
+ * (Previously defaulted ON in non-prod, which made it easy to leak OTPs in
+ * preview/staging deploys.)
  */
 export function isDevMode(): boolean {
   if (process.env.NODE_ENV === "production") return false;
-  const flag = process.env.DEV_MODE;
-  if (flag === "false") return false;
-  if (flag === "true") return true;
-  return process.env.NODE_ENV !== "production";  // default ON in non-prod
+  return process.env.DEV_MODE === "true";
 }

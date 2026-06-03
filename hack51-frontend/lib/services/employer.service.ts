@@ -8,6 +8,28 @@ import {
 import { EmployerRoles } from "@/types/catalog";
 import { ShortlistedCandidatesProps } from "@/types/shortlist";
 
+/**
+ * Response shape from POST /employer/requests/:id/publish.
+ *
+ * `payment.skip === true` means the backend skipped Paystack (dev / SKIP_PAYMENT mode)
+ * and the request is already published — the frontend should just refresh the UI.
+ *
+ * `payment.skip === false` (production) means the user MUST be redirected to
+ * `payment.authorization_url` to complete the Paystack checkout. The publish
+ * only fully takes effect after Paystack confirms via webhook + the frontend
+ * calls /employer/payments/verify/{reference}.
+ */
+export interface PublishResponse {
+  request: EmployerRequest;
+  payment: {
+    payment_reference: string;
+    authorization_url: string;
+    access_code?: string;
+    status: "success" | "pending" | "failed";
+    skip: boolean;
+  };
+}
+
 export const employerService = {
   // =========================
   //  CATALOG
@@ -69,11 +91,25 @@ export const employerService = {
     await api.delete(`/employer/requests/${id}`);
   },
 
-  publishRequest: async (id: string, challenge_id: string) => {
-    const res = await api.post(`/employer/requests/${id}/publish`, {
-      challenge_id,
-    });
-    return res.data.request;
+  /**
+   * Publish a draft request.
+   *
+   * Returns BOTH `request` and `payment`. Callers must check `payment.skip`:
+   *   - skip=true  → dev mode, request is live, refresh UI
+   *   - skip=false → production, redirect to `payment.authorization_url`
+   *
+   * The second `challenge_id` argument is preserved for backwards compatibility
+   * with the existing caller in RequestTable.tsx, but the backend ignores any
+   * body sent here — the challenge is already attached to the request from the
+   * draft phase. It's safe to omit if you update the caller.
+   */
+  publishRequest: async (
+    id: string,
+    _challenge_id?: string,
+  ): Promise<PublishResponse> => {
+    const res = await api.post(`/employer/requests/${id}/publish`);
+    // res is the unwrapped backend envelope: { request, payment }
+    return res.data as PublishResponse;
   },
 
   // =========================
