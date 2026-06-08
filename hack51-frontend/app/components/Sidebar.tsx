@@ -104,7 +104,7 @@ export default function Sidebar({ title, items, isOpen = false, onClose }: Sideb
         <Link
           href="/auth/logout"
           onClick={onClose}
-          className="block p-2 text-red-500 font-bold bg-white hover:bg-red-600 hover:text-white rounded flex items-center gap-2"
+          className="p-2 text-red-500 font-bold bg-white hover:bg-red-600 hover:text-white rounded flex items-center gap-2"
         >
           <LogOut className="inline-block w-5 h-5" />
           Logout
