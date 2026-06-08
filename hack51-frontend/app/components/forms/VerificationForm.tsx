@@ -9,11 +9,14 @@ import { toast } from "react-toastify";
 
 export default function Verification() {
   const verifyEmail = userAuth((state: any) => state.verifyEmail);
+  const resendOtp = userAuth((state: any) => state.resendOtp);
   const [otp, setOtp] = useState(Array(6).fill(""));
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
+  const email = searchParams.get("email") || "";
 
   const handleChange = (value: string, index: number) => {
     if (!/^\d?$/.test(value)) return;
@@ -22,10 +25,39 @@ export default function Verification() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    //move to next input
+    // move to next input
     if (index < 5 && value) {
       const nextInput = document.getElementById(`otp-${index + 1}`);
       nextInput?.focus();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      prevInput?.focus();
+    }
+  };
+
+  const handleResend = async () => {
+    if (!email) {
+      toast.error("Email address not found. Please go back and register again.");
+      return;
+    }
+    setResending(true);
+    try {
+      await resendOtp(email);
+      toast.success("A new verification code has been sent to your email.");
+      setOtp(Array(6).fill(""));
+      setError("");
+    } catch (err: any) {
+      const message =
+        err?.message ||
+        err?.response?.data?.message ||
+        "Failed to resend code. Please try again.";
+      toast.error(message);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -39,19 +71,27 @@ export default function Verification() {
       return;
     }
 
+    if (!email) {
+      setError("Email address not found. Please go back and register again.");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     try {
       await verifyEmail({
-        email: searchParams.get("email") || "",
+        email,
         otp: otpCode,
       });
 
       toast.success("Email verified! Redirecting to login...");
       router.push("/auth/login");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Verification failed";
+    } catch (err: any) {
+      const message =
+        err?.message ||
+        err?.response?.data?.message ||
+        "Verification failed. Please try again.";
       setError(message);
       toast.error(message);
     } finally {
@@ -73,15 +113,22 @@ export default function Verification() {
         <h1 className="text-4xl font-bold mb-4 text-[#FF0046]">
           Email Verification
         </h1>
-        <p className="text-lg text-gray-600 mb-6">
-          Check your inbox and write the six-digit code we sent in the space
-          below
+        <p className="text-lg text-gray-600 mb-2">
+          Check your inbox and enter the six-digit code we sent to:
         </p>
-        <p className="text-gray-600">
-          If you haven't received the email, please check your spam folder or{" "}
-          <a href="#" className="text-[#FF0046] font-medium hover:underline">
-            resend the verification email
-          </a>
+        {email && (
+          <p className="text-sm font-medium text-gray-800 mb-4">{email}</p>
+        )}
+        <p className="text-gray-600 text-sm mb-2">
+          If you haven't received the email, check your spam folder or{" "}
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending}
+            className="text-[#FF0046] font-medium hover:underline disabled:opacity-50"
+          >
+            {resending ? "Sending..." : "resend the code"}
+          </button>
           .
         </p>
 
@@ -92,11 +139,13 @@ export default function Verification() {
                 key={index}
                 id={`otp-${index}`}
                 type="text"
+                inputMode="numeric"
                 className="w-10 h-10 text-center border border-gray-300 rounded-md mx-1 focus:outline-none focus:ring-2 focus:ring-[#FF0046] focus:border-transparent disabled:opacity-50"
                 maxLength={1}
                 value={digit}
                 disabled={loading}
                 onChange={(e) => handleChange(e.target.value, index)}
+                onKeyDown={(e) => handleKeyDown(e, index)}
               />
             ))}
           </div>

@@ -33,12 +33,6 @@ export default function RegisterForm() {
     setError("");
     setLoading(true);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      setLoading(false);
-      return;
-    }
-
     if (
       !formData.email ||
       !formData.firstName ||
@@ -56,6 +50,12 @@ export default function RegisterForm() {
       return;
     }
 
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
     try {
       const registrationData: RegisterProps = {
         first_name: formData.firstName,
@@ -68,10 +68,12 @@ export default function RegisterForm() {
       toast.success("Registration successful! Please verify your email.");
       router.push(`/auth/verify-email?email=${formData.email}`);
     } catch (err: any) {
+      // ApiError exposes .message directly — that's the first field error
+      // from the backend (e.g. "password: Password must contain at least one special character")
       const message =
+        err?.message ||
         err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Registration failed";
+        "Registration failed. Please try again.";
       setError(message);
       toast.error(message);
     } finally {
@@ -119,7 +121,7 @@ export default function RegisterForm() {
             <input
               type="text"
               name="firstName"
-              placeholder="Enter firstName"
+              placeholder="Enter first name"
               value={formData.firstName}
               onChange={handleChange}
               className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF0046]"
@@ -133,7 +135,7 @@ export default function RegisterForm() {
             <input
               type="text"
               name="lastName"
-              placeholder="Enter lastName"
+              placeholder="Enter last name"
               value={formData.lastName}
               onChange={handleChange}
               className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF0046]"
@@ -170,6 +172,9 @@ export default function RegisterForm() {
           />
           <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
         </div>
+        <p className="text-xs text-gray-500 -mt-2">
+          Min 8 chars · uppercase · lowercase · number · special character (e.g. !@#$)
+        </p>
 
         {/* Confirm Password */}
         <div className="relative">

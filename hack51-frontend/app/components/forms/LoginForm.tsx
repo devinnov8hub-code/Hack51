@@ -22,11 +22,6 @@ export default function LoginForm() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
-  // useEffect(() => {
-  //   if (searchParams.get("verified")) {
-  //     setSuccess("Email verified successfully. You can now log in.");
-  //   }
-  // }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,12 +49,17 @@ export default function LoginForm() {
       const route = authService.getRoleRoute(data.user.role);
       router.push(route);
     } catch (err: any) {
-      if (err.status === 403) {
+      // 403 with EMAIL_NOT_VERIFIED → redirect to verify page
+      if (err?.status === 403 && err?.code === "EMAIL_NOT_VERIFIED") {
+        toast.info("Please verify your email to continue.");
         router.push(`/auth/verify-email?email=${formData.email}`);
         return;
       }
 
-      const message = err.message || "Login failed";
+      const message =
+        err?.message ||
+        err?.response?.data?.message ||
+        "Login failed. Please try again.";
       setError(message);
       toast.error(message);
     } finally {

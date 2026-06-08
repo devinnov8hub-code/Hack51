@@ -10,51 +10,32 @@ export const userAuth = create((set) => ({
   isAuthenticated: authService.isAuthenticated(),
 
   login: async (data: LoginProps) => {
-    try {
-      const response: ApiResponse<User> = await authService.login(data);
-
-      set({ user: response.user, isAuthenticated: true });
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response: ApiResponse<User> = await authService.login(data);
+    set({ user: response.user, isAuthenticated: true });
+    return response;
   },
 
   register: async (data: RegisterProps) => {
-    try {
-      const response = await authService.register(data);
-      set({ user: response.user, isAuthenticated: true, isVerified: true });
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await authService.register(data);
+    // Registration does NOT log the user in — they still need to verify email.
+    // Do not set isAuthenticated here.
+    return response;
   },
 
   verifyEmail: async (data: VerificationProps) => {
-    try {
-      const response = await authService.verifyEmail(data);
-      set({ isVerified: false });
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await authService.verifyEmail(data);
+    set({ isVerified: true });
+    return response;
   },
 
   resendOtp: async (email: string) => {
-    try {
-      const response = await authService.resendOtp(email);
-      return response;
-    } catch (err) {}
+    // Let errors bubble up so callers can show them
+    const response = await authService.resendOtp(email);
+    return response;
   },
 
   logout: () => {
     authService.logout();
     set({ user: null, isAuthenticated: false });
   },
-
-  //   updateUser: (userData) => {
-  //     const updatedUser = { ...useAuthStore.getState().user, ...userData };
-  //     localStorage.setItem("user", JSON.stringify(updatedUser));
-  //     set({ user: updatedUser });
-  //   },
 }));
