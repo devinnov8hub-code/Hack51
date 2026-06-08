@@ -1,11 +1,15 @@
 "use client";
 import Image from "next/image";
-import { type HeaderProps } from "@/types/header";
 import { User } from "@/types/user";
 import { authService } from "@/lib/services/auth.service";
 import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
 
-export default function Header() {
+type HeaderProps = {
+  onMenuToggle?: () => void;
+};
+
+export default function Header({ onMenuToggle }: HeaderProps) {
   const [user, setUser] = useState<User>();
   useEffect(() => {
     const activeUser = authService.getCurrentUser();
@@ -14,6 +18,11 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 left-0 w-full bg-white shadow z-20 flex justify-between items-center px-6 py-3">
+      {/* menu */}
+      <div className="md:hidden flex items-center">
+        <Menu size={24} className="cursor-pointer" onClick={onMenuToggle} />
+      </div>
+
       {/* logo */}
       <div className="h-16 flex items-center">
         <img src="/logo.png" alt="Logo" width="100" />

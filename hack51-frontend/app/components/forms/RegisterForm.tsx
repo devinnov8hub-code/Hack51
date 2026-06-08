@@ -82,7 +82,7 @@ export default function RegisterForm() {
   };
 
   return (
-    <div className="w-full max-w-2xl bg-white p-8 rounded-lg">
+    <div className="w-full max-w-2xl bg-white p-6 sm:p-8 rounded-lg">
       <div className="flex flex-col justify-center items-center">
         <h1 className="text-3xl font-bold mb-2">Create an account</h1>
         <p className="text-gray-600 mb-8">Enter your details to get started</p>
@@ -115,9 +115,9 @@ export default function RegisterForm() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex w-full">
+        <div className="flex flex-col sm:flex-row w-full gap-3">
           {/* firstName */}
-          <div className="relative mr-2 w-full">
+          <div className="relative w-full">
             <input
               type="text"
               name="firstName"
@@ -164,7 +164,7 @@ export default function RegisterForm() {
           <input
             type="password"
             name="password"
-            placeholder="Enter your password"
+            placeholder="Enter a strong password"
             value={formData.password}
             onChange={handleChange}
             className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF0046]"
@@ -172,9 +172,6 @@ export default function RegisterForm() {
           />
           <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
         </div>
-        <p className="text-xs text-gray-500 -mt-2">
-          Min 8 chars · uppercase · lowercase · number · special character (e.g. !@#$)
-        </p>
 
         {/* Confirm Password */}
         <div className="relative">

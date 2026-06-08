@@ -1,5 +1,4 @@
-import Header from "@/app/components/Header";
-import Sidebar from "@/app/components/Sidebar";
+import LayoutShell from "@/app/components/LayoutShell";
 
 const sidebarItems = [
   {
@@ -30,18 +29,8 @@ export default function CandidateLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex">
-      {/* Left sidebar */}
-      <Sidebar title="" items={sidebarItems} />
-
-      {/* Main area including header and page content */}
-      <div className="flex-1">
-        <Header    
-        />
-        <main className="ml-64 mt-24 p-6 bg-gray-50 min-h-screen">
-          {children}
-        </main>
-      </div>
-    </div>
+    <LayoutShell sidebarTitle="" sidebarItems={sidebarItems}>
+      {children}
+    </LayoutShell>
   );
 }

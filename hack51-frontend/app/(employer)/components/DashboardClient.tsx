@@ -7,7 +7,7 @@ import { EmployerDashboardProps } from "@/types/dashboard";
 import { toast } from "react-toastify";
 import { FileBadge, PenSquareIcon, Users, CheckCircle } from "lucide-react";
 import { badgeClasses } from "@/lib/globalFunction";
-import {useRouter} from "next/navigation";
+import { useRouter } from "next/navigation";
 import { dashboardService } from "@/lib/services/dashboard.service";
 
 interface DashboardProps {
@@ -64,7 +64,9 @@ export default function DashboardClient({
               <p className="text-gray-600 mt-2">{description}</p>
             </div>
 
-            <ChallengeButton />
+            <div>
+              <ChallengeButton />
+            </div>
           </section>
 
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
@@ -213,6 +215,13 @@ export default function DashboardClient({
                     </td>
                   </tr>
                 ))}
+                {!dashboardData?.active_requests.length && (
+                  <tr>
+                    <td colSpan={4} className="py-6 text-center text-gray-500">
+                      No active requests yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </section>
