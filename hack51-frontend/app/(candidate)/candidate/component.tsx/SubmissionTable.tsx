@@ -121,6 +121,13 @@ export default function SubmissionTable() {
                   </td>
                 </tr>
               ))}
+              {!submissions.length && (
+                <tr>
+                  <td colSpan={4} className="py-6 text-center text-gray-500">
+                    No submissions found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
 

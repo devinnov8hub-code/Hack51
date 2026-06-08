@@ -61,12 +61,12 @@ export default function FindChallengesPage() {
           <div className="flex justify-center py-24">
             <div className="loader" />
           </div>
-        ) : (
+        ) : challenges.length ? (
           <div className="grid grid-cols-3 gap-4">
             {challenges.map((c) => (
               <div
                 key={c.id}
-                onClick={() =>router.push(`/candidate/challenges/${c.id}`)}
+                onClick={() => router.push(`/candidate/challenges/${c.id}`)}
                 className="border border-gray-200 rounded-xl p-4 hover:border-[#FF1F5A] hover:shadow-sm transition-all group"
               >
                 <div className="flex items-center justify-between mb-3">
@@ -99,6 +99,10 @@ export default function FindChallengesPage() {
               </div>
             ))}
           </div>
+        ) : (
+          <p className="flex justify-center text-gray-500">
+            No challenges found.
+          </p>
         )}
       </div>
     </>

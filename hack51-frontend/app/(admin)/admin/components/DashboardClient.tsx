@@ -100,14 +100,14 @@ export default function DashboardClient() {
           </section>
 
           <section className="flex justify-between items-center">
-            <div className="shadow bg-white rounded-lg p-3 w-1/2 mr-10 ">
+            <div className="shadow bg-white rounded-lg p-3 w-1/2 md:w-full mr-10 md:mr-0 ">
               <div className="flex gap-2 border-b my-2 border-b-gray-200">
                 <FileSpreadsheet className="text-[#FF0046]" />
                 <h1 className="font-bold">Reviewers evaluation per day </h1>
               </div>
               <EvaluationBarChart />
             </div>
-            <div className="shadow bg-white rounded-lg p-3 w-1/2 ml-10 ">
+            <div className="shadow bg-white rounded-lg p-3 w-1/2 md:w-full ml-10 md:ml-0 ">
               <div className="flex gap-2 border-b my-2 border-b-gray-200">
                 <FileSpreadsheet className="text-[#FF0046]" />
                 <h1 className="font-bold">Reviewers evaluation per day </h1>
@@ -117,8 +117,8 @@ export default function DashboardClient() {
             </div>
           </section>
 
-          <div className="bg-white p-6 rounded-lg shadow mt-6">
-            <h2 className="text-xl font-bold mb-4">Recent Requests</h2>
+          {/* <div className="bg-white p-6 rounded-lg shadow mt-6">
+            <h2 className="text-xl font-bold mb-4">Recent Requests</h2> 
          
         {/* {loading ? (
           <div className="flex justify-center py-24">
@@ -183,8 +183,8 @@ export default function DashboardClient() {
               ))}
             </tbody>
           </table>
-        )}  */}
-          </div>
+        )} 
+          </div> */}
         </>
       )}
     </div>

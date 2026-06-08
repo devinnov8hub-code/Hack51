@@ -67,7 +67,7 @@ export default function SubmissionsPage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex items-center justify-between mb-5">
+        <div className="md:flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-gray-900">
             Active Submissions
           </h2>
