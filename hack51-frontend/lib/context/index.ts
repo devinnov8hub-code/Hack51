@@ -1,5 +1,11 @@
 import { create } from "zustand";
-import { LoginProps, RegisterProps, VerificationProps } from "@/types/auth";
+import {
+  LoginProps,
+  RegisterProps,
+  VerificationProps,
+  VerifyResetOtpProps,
+  ResetPasswordProps,
+} from "@/types/auth";
 import { authService } from "../services/auth.service";
 import { ApiResponse } from "@/types/api";
 import { User } from "@/types/user";
@@ -37,5 +43,20 @@ export const userAuth = create((set) => ({
   logout: () => {
     authService.logout();
     set({ user: null, isAuthenticated: false });
+  },
+
+  forgotPassword: async (email: string) => {
+    const response = await authService.forgotPassword(email);
+    return response;
+  },
+
+  verifyResetOtp: async (data: VerifyResetOtpProps) => {
+    const response = await authService.verifyResetOtp(data);
+    return response;
+  },
+
+  resetPassword: async (data: ResetPasswordProps) => {
+    const response = await authService.resetPassword(data);
+    return response;
   },
 }));

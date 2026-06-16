@@ -21,3 +21,18 @@ export interface DashboardRoute {
   candidate: "/candidate/dashboard";
   admin: "/admin/dashboard";
 }
+
+export interface ForgotPasswordProps {
+  email: string;
+}
+
+export interface VerifyResetOtpProps {
+  email: string;
+  otp: string;
+  new_password: string;
+}
+
+export interface ResetPasswordProps {
+  reset_token: string;
+  new_password: string;
+}

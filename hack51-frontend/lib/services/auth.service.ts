@@ -143,6 +143,28 @@ export const authService = {
     return roleRoutes[role];
   },
 
+  forgotPassword: async (email: string) => {
+    const response = await api.post("/auth/forgot-password", { email });
+    return response;
+  },
+
+  resetPassword: async (data: {
+    reset_token: string;
+    new_password: string;
+  }) => {
+    const response = await api.post("/auth/reset-password", data);
+    return response;
+  },
+
+  verifyResetOtp: async (data: {
+    email: string;
+    otp: string;
+    new_password: string;
+  }) => {
+    const response = await api.post("/auth/verify-reset-otp", data);
+    return response;
+  },
+  
   //   updateProfile: async (profileData) => {
   //     return await api.put("/auth/profile", profileData);
   //   },
