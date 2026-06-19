@@ -108,7 +108,9 @@ export default function ShortlistTable() {
                       </div>
                     </td>
 
-                    <td className="py-2 px-4">{list.shortlists[0]?.delivered_at ?? "-"}</td>
+                    <td className="py-2 px-4">
+                      {list.shortlists[0]?.delivered_at ?? "-"}
+                    </td>
 
                     <td className="py-2 px-4 flex gap-2">
                       <button
@@ -123,6 +125,13 @@ export default function ShortlistTable() {
                 ))}
               </tbody>
             </table>
+            {shortlists.length === 0 && !loading && (
+              <div className="flex flex-col justify-center items-center py-24">
+                <p className="text-gray-500 text-sm text-center">
+                  No shortlists found.
+                </p>
+              </div>
+            )}
             <section className="flex justify-between items-center mt-8">
               <div className="flex items-center m-2 text-gray-500 text-sm">
                 <ArrowLeft width={18} />

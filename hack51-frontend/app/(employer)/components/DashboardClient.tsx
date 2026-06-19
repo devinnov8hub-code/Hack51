@@ -107,7 +107,7 @@ export default function DashboardClient({
             <div className="card bg-white p-8 rounded-lg shadow border-t-3 border-[#FF0046]">
               <PenSquareIcon className="w-6 h-6 text-[#FF0046] mb-2" />
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">In Evaluation</h3>
+                <h3 className="text-lg font-semibold">Pending Evaluation</h3>
                 <div
                   className={`px-3 py-1 rounded-full text-xs font-bold text-yellow-600 bg-yellow-100`}
                 >

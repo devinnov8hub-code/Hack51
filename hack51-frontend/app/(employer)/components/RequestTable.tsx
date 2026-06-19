@@ -3,7 +3,7 @@
 import { EmployerRequest } from "@/types/employer";
 import { employerService } from "@/lib/services/employer.service";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface RequestTableProps {
   requests: EmployerRequest[];
@@ -42,6 +42,10 @@ export default function RequestTable({
   const router = useRouter();
   const [publishing, setPublishing] = useState<string | null>(null);
   const [requestList, setRequestList] = useState(requests);
+
+  useEffect(() => {
+    setRequestList(requests);
+  }, [requests]);
 
   const handlePublish = async (request_id: string, challenge_id: string) => {
     setPublishing(request_id);
