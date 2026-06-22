@@ -110,11 +110,6 @@ export default function SubmitPage() {
     sessionStorage.setItem("submission_data", JSON.stringify(finalSubmitData));
     router.push(`/candidate/challenges/${id}/review`);
 
-    // router.push(
-    //   `/candidate/challenges/${id}/review?artifact_url=${encodeURIComponent(
-    //     submitData.artifact_urls[0],
-    //   )}&statement=${encodeURIComponent(submitData.submission_statement)}`,
-    // );
   };
 
   return (

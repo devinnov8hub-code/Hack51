@@ -94,8 +94,8 @@ export default function ReviewPage() {
         const response =
           await challengeService.getCandidateChallengeDetails(id);
         setChallenge(response.data);
-      } catch (err) {
-        toast.error("Failed to fetch challenge details.");
+      } catch (err:any) {
+        toast.error("Failed to fetch challenge details." , err);
         console.error(err);
       } finally {
         setLoading(false);
@@ -130,7 +130,9 @@ export default function ReviewPage() {
       setShowSuccess(true);
     } catch (err: any) {
       toast.error(
-        typeof err === "string" ? err : "Failed to submit your challenge.",
+        typeof err === "string"
+          ? err
+          : err?.message || "Failed to submit your challenge.",
       );
       console.error("Submit error", err);
     } finally {
@@ -180,7 +182,7 @@ export default function ReviewPage() {
           </div>
 
           <div className="mb-6">
-            <h3 className="font-semibold text-gray-900 text-base mb-0.5">
+            <h3 className="font-semibold text-gray-900 text-base mb-0.5 capitalize">
               {challenge?.role_level ?? "Candidate submission"}
             </h3>
             <p className="text-sm text-gray-400 mb-4">
@@ -201,11 +203,10 @@ export default function ReviewPage() {
                 Artifact link
               </p>
               {artifactUrls.length > 0 ? (
-                artifactUrls.map((url: string, index: number) => (
-                  <ul>
-                    <li>
+                <ul>
+                  {artifactUrls.map((url: string, index: number) => (
+                    <li key={index}>
                       <a
-                        key={index}
                         href={url}
                         target="_blank"
                         rel="noreferrer"
@@ -214,8 +215,8 @@ export default function ReviewPage() {
                         {url}
                       </a>
                     </li>
-                  </ul>
-                ))
+                  ))}
+                </ul>
               ) : (
                 <p className="text-sm text-gray-500">No link provided.</p>
               )}

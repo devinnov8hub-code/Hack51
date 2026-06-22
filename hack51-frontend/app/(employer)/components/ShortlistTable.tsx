@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ShortlistedCandidatesProps } from "@/types/shortlist";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { formatDate } from "@/lib/globalFunction";
 
 export default function ShortlistTable() {
   const router = useRouter();
@@ -109,7 +110,7 @@ export default function ShortlistTable() {
                     </td>
 
                     <td className="py-2 px-4">
-                      {list.shortlists[0]?.delivered_at ?? "-"}
+                      {formatDate(list.shortlists[0]?.delivered_at ?? "-")}
                     </td>
 
                     <td className="py-2 px-4 flex gap-2">
