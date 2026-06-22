@@ -55,7 +55,7 @@ export default function ReviewTable() {
           ? response
           : ((response as any).data ?? []);
         setRequests(requestsData);
-        toast.success("Requests loaded successfully");
+        // toast.success("Requests loaded successfully");
       } catch (err: any) {
         toast.error("Failed to load requests");
       } finally {
