@@ -3,11 +3,12 @@
 import { EmployerRequest } from "@/types/employer";
 import { employerService } from "@/lib/services/employer.service";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface RequestTableProps {
   requests: EmployerRequest[];
   detailed?: boolean;
+  onRequestUpdated?: (id: string, updatedRequest: Partial<EmployerRequest>) => void;
 }
 
 const badgeClasses = (status: string) => {
@@ -31,6 +32,7 @@ const daysLeft = (deadline: string) => {
 export default function RequestTable({
   requests,
   detailed = false,
+  onRequestUpdated,
 }: RequestTableProps) {
   const headers = [
     "Request Title",
@@ -41,11 +43,6 @@ export default function RequestTable({
   ];
   const router = useRouter();
   const [publishing, setPublishing] = useState<string | null>(null);
-  const [requestList, setRequestList] = useState(requests);
-
-  useEffect(() => {
-    setRequestList(requests);
-  }, [requests]);
 
   const handlePublish = async (request_id: string, challenge_id: string) => {
     setPublishing(request_id);
@@ -57,18 +54,7 @@ export default function RequestTable({
       const { request: updatedRequest /*, payment */ } =
         await employerService.publishRequest(request_id, challenge_id);
 
-      setRequestList((prev) =>
-        prev.map((request) =>
-          request.id === request_id
-            ? {
-                ...request,
-                ...updatedRequest,
-              }
-            : request,
-        ),
-      );
-
-      router.refresh();
+      onRequestUpdated?.(request_id, updatedRequest);
     } catch (err: any) {
       console.error("Failed to publish request:", err.message);
       alert(err.message ?? "Failed to publish request.");
@@ -77,7 +63,7 @@ export default function RequestTable({
     }
   };
 
-  if (requestList.length === 0) {
+  if (requests.length === 0) {
     return <p className="text-gray-500 text-sm py-4">No requests found.</p>;
   }
 
@@ -97,7 +83,7 @@ export default function RequestTable({
           </tr>
         </thead>
         <tbody>
-          {requestList.map((req) => (
+          {requests.map((req) => (
             <tr
               key={req.id}
               className="border-b border-gray-100 hover:bg-gray-50"

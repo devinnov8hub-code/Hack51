@@ -29,6 +29,15 @@ export default function RequestsPage() {
     fetchRequests();
   }, []);
 
+  const handleRequestUpdated = (
+    id: string,
+    updatedRequest: Partial<EmployerRequest>,
+  ) => {
+    setRequests((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...updatedRequest } : r)),
+    );
+  };
+
   const filtered = requests.filter((r) => {
     if (activeTab === "drafts") return r.status === "draft";
     if (activeTab === "closed")
@@ -94,7 +103,11 @@ export default function RequestsPage() {
             No requests found.
           </p>
         ) : (
-          <RequestTable requests={filtered} detailed />
+          <RequestTable
+            requests={filtered}
+            detailed
+            onRequestUpdated={handleRequestUpdated}
+          />
         )}
       </section>
     </div>

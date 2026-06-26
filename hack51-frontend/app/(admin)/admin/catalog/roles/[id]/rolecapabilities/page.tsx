@@ -181,6 +181,8 @@ export default function RoleCapabilities() {
                   value={cap.summary}
                   onChange={(e) => handleCapabilityChange(index, "summary", e.target.value)}
                 />
+
+                
               </div>
             ))}
           </div>
