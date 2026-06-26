@@ -182,7 +182,24 @@ export default function RoleCapabilities() {
                   onChange={(e) => handleCapabilityChange(index, "summary", e.target.value)}
                 />
 
-                
+                  {/* {capabilities.deliverables?.length > 0 && ( */}
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                          Deliverables
+                        </p>
+                        <ul className="space-y-1">
+                          {/* {capabilities.deliverables.map((d, i) => ( */}
+                            <li
+                              // key={i}
+                              className="text-sm text-gray-700 flex items-center gap-2"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#FF0046] inline-block" />
+                            example
+                            </li>
+                          {/* ))} */}
+                        </ul>
+                      </div>
+                    {/* )} */}
               </div>
             ))}
           </div>

@@ -65,14 +65,15 @@ export default function SubmissionsList({
         >
           <div className="flex items-center gap-4">
             <UserCircle2 className="text-[#FF0046]" />
+            {/* company credentials */}
             <div>
-              <h1 className="font-bold">Magrib Constructions</h1>
-              <p className="text-sm text-gray-500">magrib@gmail.com</p>
+              {/* <h1 className="font-bold">Magrib Constructions</h1>
+              <p className="text-sm text-gray-500">magrib@gmail.com</p> */}
             </div>
           </div>
           <div>
-            {/* <h1 className="font-bold">{triageSubmission.title}</h1> */}
-            <h1 className="font-bold">Product Designer</h1>
+            {/* <h1 className="font-bold">{triageSubmission.job_requests.title}</h1> */}
+            {/* <h1 className="font-bold">Product Designer</h1> */}
             <p className="text-sm text-gray-500">{requestId}</p>
           </div>
         </section>
