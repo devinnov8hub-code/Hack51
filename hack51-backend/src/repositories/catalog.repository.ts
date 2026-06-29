@@ -37,7 +37,7 @@ export async function listCatalogRoles(
     id, name, description, is_active, status, proposed_by,
     created_at, updated_at,
     catalog_skill_levels(id, level),
-    catalog_capabilities(id, title, summary),
+    catalog_capabilities(id, title, summary, competency_units),
     challenges(id, title, is_active, status)
   `).order("created_at", { ascending: false });
 
@@ -56,7 +56,7 @@ export async function getCatalogRole(id: string) {
     id, name, description, is_active, status, proposed_by, reject_reason,
     created_at, updated_at,
     catalog_skill_levels(id, level),
-    catalog_capabilities(id, title, summary),
+    catalog_capabilities(id, title, summary, competency_units),
     challenges(id, title, summary, is_active, status,
       rubric_criteria(id, title, description, weight, sort_order))
   `).eq("id", id).single();
@@ -72,7 +72,7 @@ export async function createCatalogRole(input: {
   status?: "approved" | "pending";   // admins create approved, employers create pending
   proposed_by?: string | null;        // employer id for proposals, null for admin-created
   skill_levels?: string[];
-  capabilities?: { title: string; summary?: string }[];
+  capabilities?: { title: string; summary?: string; competency_units?: { title: string; summary?: string }[] }[];
 }) {
   const { data: role, error } = await supabase.from("catalog_roles")
     .insert({
@@ -95,6 +95,7 @@ export async function createCatalogRole(input: {
       catalog_role_id: role.id,
       title: c.title,
       summary: c.summary ?? null,
+      competency_units: c.competency_units ?? [],
     }));
     const { error: ce } = await supabase.from("catalog_capabilities").insert(caps);
     if (ce) throw new InternalError(ce.message);
@@ -124,7 +125,7 @@ export async function updateCatalogRole(id: string, input: {
   description?: string;
   is_active?: boolean;
   skill_levels?: string[];
-  capabilities?: { id?: string; title: string; summary?: string }[];
+  capabilities?: { id?: string; title: string; summary?: string; competency_units?: { title: string; summary?: string }[] }[];
 }) {
   // 1. Update the scalar fields on catalog_roles
   const scalarFields: Record<string, unknown> = {};
@@ -176,7 +177,11 @@ export async function updateCatalogRole(id: string, input: {
     // Update surviving capabilities
     for (const c of toUpdate) {
       const { error: ue } = await supabase.from("catalog_capabilities")
-        .update({ title: c.title, summary: c.summary ?? null })
+        .update({
+          title: c.title,
+          summary: c.summary ?? null,
+          competency_units: c.competency_units ?? [],
+        })
         .eq("id", c.id!);
       if (ue) throw new InternalError(ue.message);
     }
@@ -186,6 +191,7 @@ export async function updateCatalogRole(id: string, input: {
         catalog_role_id: id,
         title: c.title,
         summary: c.summary ?? null,
+        competency_units: c.competency_units ?? [],
       }));
       const { error: ie } = await supabase.from("catalog_capabilities").insert(rows);
       if (ie) throw new InternalError(ie.message);
@@ -462,7 +468,7 @@ export async function listPendingRoleProposals() {
   const { data, error } = await supabase.from("catalog_roles").select(`
     id, name, description, status, proposed_by, created_at,
     catalog_skill_levels(id, level),
-    catalog_capabilities(id, title, summary),
+    catalog_capabilities(id, title, summary, competency_units),
     users!proposed_by(id, email, first_name, last_name)
   `).eq("status", "pending").order("created_at", { ascending: false });
   if (error) throw new InternalError(error.message);

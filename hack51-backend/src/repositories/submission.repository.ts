@@ -118,21 +118,45 @@ export async function createSubmission(input: {
  * a 500 with a leaked Supabase error ("Cannot coerce the result to a single
  * JSON object"). Now we look the row up first with maybeSingle() and throw
  * a clean 404 SUBMISSION_NOT_FOUND, matching the behaviour of getSubmission.
+ *
+ * FIX (v1.2.4): two related bugs around re-evaluating a scored submission:
+ *   1. ALREADY_TRIAGED guard — only a submission still in `submitted` status
+ *      may be triaged. Re-triaging an evaluated row used to silently reset it
+ *      to `under_review`, forcing the reviewer to re-score it.
+ *   2. The update now joins job_requests in its .select() so the response
+ *      includes the request title (the frontend reads data.job_requests.title).
  */
 export async function triageSubmission(id: string, input: {
   triage_decision: "valid" | "invalid" | "returned";
   triage_reason?: string;
   triaged_by: string;
 }) {
-  // Confirm the submission exists before attempting to update it.
+  // Confirm the submission exists AND read its current status so we can
+  // guard against re-triaging an already-evaluated submission.
   const { data: existing, error: existingErr } = await supabase
     .from("submissions")
-    .select("id")
+    .select("id, status")
     .eq("id", id)
     .maybeSingle();
   if (existingErr) throw new InternalError(existingErr.message);
   if (!existing) {
     throw new NotFoundError("Submission not found", "SUBMISSION_NOT_FOUND");
+  }
+
+  // GUARD (Bug 1): only a submission that is still `submitted` may be triaged.
+  // Previously this function unconditionally forced the status back to
+  // `under_review` (for a "valid" decision) no matter what state the row was
+  // in. That meant re-opening an already-SCORED submission and clicking
+  // "Evaluate" wiped its score and made the reviewer redo the scoring. We now
+  // reject any non-`submitted` row with a 409 so the evaluation state is
+  // never silently destroyed. (Resubmissions reset status back to `submitted`
+  // in createSubmission, so a returned-then-resubmitted item can be triaged
+  // again — which is correct.)
+  if (existing.status !== "submitted") {
+    throw new ConflictError(
+      `This submission has already been triaged (current status: ${existing.status}) and cannot be re-triaged.`,
+      "ALREADY_TRIAGED",
+    );
   }
 
   const statusMap = { valid: "under_review", invalid: "rejected", returned: "returned" } as const;
@@ -144,7 +168,12 @@ export async function triageSubmission(id: string, input: {
       triaged_at: new Date().toISOString(),
       status: statusMap[input.triage_decision],
       updated_at: new Date().toISOString(),
-    }).eq("id", id).select().single();
+    }).eq("id", id)
+    // Bug 2 (crash fix): include the job_requests join so the response carries
+    // the request title, matching getSubmission's shape. Without it,
+    // response.data.job_requests is undefined and the frontend crashed reading
+    // `.title` off it.
+    .select(`*, job_requests!job_request_id(id, title)`).single();
   if (error) throw new InternalError(error.message);
   return data;
 }

@@ -4,10 +4,19 @@ import { z } from "zod";
 
 const SkillLevelEnum = z.enum(["entry-level", "mid-level", "senior"]);
 
+const CompetencyUnitSchema = z.object({
+  title: z.string().min(1).max(200),
+  summary: z.string().max(1000).optional(),
+});
+
 const CapabilityInputSchema = z.object({
   id: z.string().uuid().optional(),   // present when updating an existing capability
   title: z.string().min(1).max(200),
   summary: z.string().max(1000).optional(),
+  // Up to 5 finer-grained competency units nested under this capability.
+  competency_units: z.array(CompetencyUnitSchema).max(5, {
+    message: "A capability can have at most 5 competency units",
+  }).optional(),
 });
 
 const RubricCriterionSchema = z.object({
