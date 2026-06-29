@@ -14,6 +14,7 @@ export type SubmissionStatus =
   | "scored"
   | "shortlisted"
   | "rejected";
+  // | "received_submissions";
 
 export interface SubmissionListProps {
   id: string;
@@ -50,6 +51,7 @@ export type Stats = {
   rejected: number;
   under_review: number;
   published: string;
+  received_submissions: number;
 };
 
 export interface SubmissionFullDetail {

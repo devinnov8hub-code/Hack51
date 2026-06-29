@@ -51,7 +51,7 @@ export default function SubmissionsList({
         router.push(`/admin/review/${requestId}/submissions/${id}`);
       }, 3000);
     } catch (err: any) {
-      toast.error("Failed to begin evaluation, something went wrong");
+      toast.error(err?.message ?? "Failed to begin evaluation, something went wrong");
     } finally {
       setEvaluatingId(null);
     }
@@ -59,10 +59,7 @@ export default function SubmissionsList({
   return (
     <div className="overflow-x-auto shadow rounded-lg p-8 bg-white">
       {triageSubmission && (
-        <section
-          className="flex gap-10 bg-white border-b pb-4 border-b-gray-200"
-         
-        >
+        <section className="flex gap-10 bg-white border-b pb-4 border-b-gray-200">
           <div className="flex items-center gap-4">
             <UserCircle2 className="text-[#FF0046]" />
             {/* company credentials */}
@@ -72,7 +69,7 @@ export default function SubmissionsList({
             </div>
           </div>
           <div>
-            {/* <h1 className="font-bold">{triageSubmission.job_requests.title}</h1> */}
+            <h1 className="font-bold">{triageSubmission.job_requests.title}</h1>
             {/* <h1 className="font-bold">Product Designer</h1> */}
             <p className="text-sm text-gray-500">{requestId}</p>
           </div>
@@ -104,7 +101,6 @@ export default function SubmissionsList({
                       {sub.id && (
                         <small className="text-gray-500">ID: {sub.id}</small>
                       )}
-                     
                     </>
                   )}
                 </div>
@@ -122,22 +118,40 @@ export default function SubmissionsList({
                   {sub.status}
                 </span>
               </td>
+            
               <td className="py-2 px-4 flex gap-2">
-                <button
-                  onClick={() => handleTriageSubmission(sub.id)}
-                  className=" flex gap-2 text-gray-500 hover:text-gray-700 mr-2 border border-gray-200 px-3 py-1 rounded"
-                >
-                  {evaluatingId === sub.id && (
-                    <div className="loader" style={{ width: "12px" }} />
-                  )}
-                  {evaluatingId === sub.id ? "Begin evaluation..." : "Evaluate"}
-                </button>
+                {sub.status === "submitted" ? (
+                  <button
+                    onClick={() => handleTriageSubmission(sub.id)}
+                    className="flex gap-2 text-gray-500 hover:text-gray-700 mr-2 border border-gray-200 px-3 py-1 rounded"
+                  >
+                    {evaluatingId === sub.id && (
+                      <div className="loader" style={{ width: "12px" }} />
+                    )}
+                    {evaluatingId === sub.id
+                      ? "Begin evaluation..." : "Evaluate"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() =>
+                      router.push(
+                        `/admin/review/${requestId}/submissions/${sub.id}`,
+                      )
+                    }
+                    className="text-gray-500 hover:text-gray-700 border border-gray-200 px-3 py-1 rounded"
+                  >
+                    View
+                  </button>
+                )}
               </td>
             </tr>
           ))}
           {submissions.length === 0 && (
             <tr>
-              <td colSpan={headers.length} className="py-10 px-4 text-center text-gray-500">
+              <td
+                colSpan={headers.length}
+                className="py-10 px-4 text-center text-gray-500"
+              >
                 No submissions to the request yet.
               </td>
             </tr>

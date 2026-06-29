@@ -33,6 +33,7 @@ export interface EmployerRequest {
   created_at: string;
   updated_at: string;
   challenges: Challenge;
+  received_submissions? : number;
 }
 
 export interface Challenge extends CreateChallengeWithRubric {

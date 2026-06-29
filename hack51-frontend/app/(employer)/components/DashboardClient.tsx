@@ -116,7 +116,7 @@ export default function DashboardClient({
               </div>
 
               <p className="text-2xl font-bold mt-2">
-                {dashboardData?.summary.total_evaluations}
+                {dashboardData?.summary.pending_evaluation}
               </p>
               <p className={`text-sm text-yellow-600`}>Pending Evaluation</p>
             </div>

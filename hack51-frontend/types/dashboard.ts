@@ -7,6 +7,7 @@ export interface EmployerDashboardProps {
     total_requests: number;
     total_submissions: number;
     total_evaluations: number;
+    pending_evaluation: number;
     total_shortlists_delivered: number;
     unread_notifications: number;
     by_status: {

@@ -4,15 +4,23 @@ export interface RoleCreationPayload {
   name?: string;
   description?: string;
   skill_levels?: SkillLevel[];
-  capabilities?: {
-    title: string;
-    summary: string;
-  }[];
+  capabilities?: Capability[]
+  // {
+  //   title: string;
+  //   summary: string;
+
+  // }[];
 }
 
 export interface Capability {
+  id?: string;
   title: string;
   summary: string;
+  competency_units: {
+    id?: string;
+    title: string;
+    summary?: string;
+  }[]
 }
 
 export interface EmployerRoles {

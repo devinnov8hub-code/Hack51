@@ -41,6 +41,19 @@ export default function RoleDetails() {
                   {cap.title}
                 </h3>
                 <p className="mt-3 text-sm text-gray-600">{cap.summary}</p>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-700 uppercase tracking-wide my-2 mt-4">
+                    Competency Units
+                  </p>
+                  {(cap.competency_units ?? []).map((unit: any, index: number) => (
+                    <div key={unit.id ?? index}>
+                      <p className="mt-3 text-sm text-gray-800 bg-gray-200 rounded-2xl p-1.5 pl-4">
+                        {unit.title}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </section>

@@ -11,7 +11,7 @@ type ActivityState = "done" | "current" | "pending";
 
 const ACTIVITY_STEPS = [
   { key: "published", label: "Request Published" },
-  { key: "submissions", label: "Submissions Received" },
+  { key: "submissions", label: "Receiving Submissions" },
   { key: "evaluating", label: "Evaluation Started" },
   { key: "shortlisted", label: "Shortlist" },
 ] as const;
@@ -113,7 +113,7 @@ const RequestDetails = () => {
           <div key={req.id} className="mb-6">
             <h1 className="text-2xl font-semibold">{req.title}</h1>
             <p className="text-gray-500 text-sm">
-              ID: {req.id} • Date Created: {formatDate(req.deadline)}
+              ID: {req.id} • Date Created: {formatDate(req.created_at)}
             </p>
           </div>
         ))}
@@ -134,7 +134,7 @@ const RequestDetails = () => {
                 <div className="bg-gray-100 p-4 rounded-lg">
                   <p className="text-xs text-gray-500">Received Submissions</p>
                   <h3 className="text-lg font-semibold">
-                    {item.challenge_cap}
+                    {item.received_submissions ?? 0}
                   </h3>
                 </div>
                 <div className="bg-gray-100 p-4 rounded-lg">

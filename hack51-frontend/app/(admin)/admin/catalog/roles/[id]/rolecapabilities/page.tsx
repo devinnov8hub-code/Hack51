@@ -4,63 +4,87 @@ import { ArrowLeftIcon, PlusCircle, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { catalogService } from "@/lib/services/catalog.service";
 import { toast } from "react-toastify";
-
+import { Capability } from "@/types/catalog";
 
 const MAX_CAPABILITIES = 3;
-
-type Capability = {
-  title: string;
-  summary: string;
-};
+const MAX_UNITS = 5;
+  
 
 export default function RoleCapabilities() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
-  const [roleDetails, setRoleDetails] = useState({ name: "", skill_levels: "" });
+  const [roleDetails, setRoleDetails] = useState({
+    name: "",
+    skill_levels: "",
+  });
   const [savedSkillLevels, setSavedSkillLevels] = useState<string[]>([]);
-  const [capabilities, setCapabilities] = useState<Capability[]>([{ title: "", summary: "" }]);
+  const [capabilities, setCapabilities] = useState<Capability[]>([
+    { title: "", summary: "", competency_units: [] },
+  ]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    catalogService.getRoleById(id).then((res) => {
-      const role = res?.data ?? res;
+    catalogService
+      .getRoleById(id)
+      .then((res) => {
+        const role = res?.data ?? res;
 
-      // Skill levels — handle both string[] and {id, level}[] formats
-      const rawLevels: any[] = role?.catalog_skill_levels ?? role?.skill_levels ?? [];
-      const skillLevel = rawLevels
-        .map((item) => (typeof item === "string" ? item : item?.level ?? item?.name ?? ""))
-        .filter(Boolean)
-        .join(", ");
+        // Skill levels — handle both string[] and {id, level}[] formats
+        const rawLevels: any[] =
+          role?.catalog_skill_levels ?? role?.skill_levels ?? [];
+        const skillLevel = rawLevels
+          .map((item) =>
+            typeof item === "string" ? item : (item?.level ?? item?.name ?? ""),
+          )
+          .filter(Boolean)
+          .join(", ");
 
-      setRoleDetails({ name: role?.name ?? "", skill_levels: skillLevel });
-      setSavedSkillLevels(rawLevels.map((item: any) => (typeof item === "string" ? item : item?.level ?? "")));
-
-      const existingCaps: any[] = role?.catalog_capabilities ?? role?.capabilities ?? [];
-      if (existingCaps.length) {
-        setCapabilities(
-          existingCaps.slice(0, MAX_CAPABILITIES).map((c) => ({
-            title: c.title ?? "",
-            summary: c.summary ?? "",
-          }))
+        setRoleDetails({ name: role?.name ?? "", skill_levels: skillLevel });
+        setSavedSkillLevels(
+          rawLevels.map((item: any) =>
+            typeof item === "string" ? item : (item?.level ?? ""),
+          ),
         );
-      }
-    }).catch((err: any) => {
-      console.error("ERROR FETCHING ROLE", err.message);
-    }).finally(() => setLoading(false));
+
+        const existingCaps: any[] =
+          role?.catalog_capabilities ?? role?.capabilities ?? [];
+        if (existingCaps.length) {
+          setCapabilities(
+            existingCaps.slice(0, MAX_CAPABILITIES).map((c) => ({
+              ...(c.id ? { id: c.id } : {}),
+              title: c.title ?? "",
+              summary: c.summary ?? "",
+              competency_units: (c.competency_units ?? []).map((u: any) => ({
+                ...(u.id ? { id: u.id } : {}),
+                title: u.title ?? "",
+                summary: u.summary ?? "",
+              })),
+            })),
+          );
+        }
+      })
+      .catch((err: any) => {
+        console.error("ERROR FETCHING ROLE", err.message);
+      })
+      .finally(() => setLoading(false));
   }, [id]);
 
-  const handleCapabilityChange = (index: number, field: keyof Capability, value: string) => {
+  const handleCapabilityChange = (
+    index: number,
+    field: keyof Capability,
+    value: string,
+  ) => {
     setCapabilities((prev) =>
-      prev.map((cap, i) => (i === index ? { ...cap, [field]: value } : cap))
+      prev.map((cap, i) => (i === index ? { ...cap, [field]: value } : cap)),
     );
   };
 
   const addCapability = () => {
     if (capabilities.length < MAX_CAPABILITIES) {
-      setCapabilities((prev) => [...prev, { title: "", summary: "" }]);
+      setCapabilities((prev) => [...prev, { title: "", summary: "" ,competency_units: []  }]);
     }
   };
 
@@ -70,23 +94,90 @@ export default function RoleCapabilities() {
     }
   };
 
+  const addUnit = (capIndex: number) => {
+    setCapabilities((prev) =>
+      prev.map((c, i) =>
+        i === capIndex
+          ? {
+              ...c,
+              competency_units: [
+                ...(c.competency_units ?? []),
+                { title: "", summary: "" },
+              ],
+            }
+          : c,
+      ),
+    );
+  };
+
+  const removeUnit = (capIndex: number, unitIndex: number) => {
+    setCapabilities((prev) =>
+      prev.map((c, i) =>
+        i === capIndex
+          ? {
+              ...c,
+              competency_units: (c.competency_units ?? []).filter(
+                (_, ui) => ui !== unitIndex,
+              ),
+            }
+          : c,
+      ),
+    );
+  };
+
+  const handleUnitChange = (
+    capIndex: number,
+    unitIndex: number,
+    value: string,
+  ) => {
+    setCapabilities((prev) =>
+      prev.map((c, i) =>
+        i === capIndex
+          ? {
+              ...c,
+              competency_units: (c.competency_units ?? []).map((u, ui) =>
+                ui === unitIndex ? { ...u, title: value } : u,
+              ),
+            }
+          : c,
+      ),
+    );
+  };
+
   const handleSave = async () => {
-    const filled = capabilities.filter((c) => c.title.trim());
+    const filled = capabilities
+      .filter((c) => c.title.trim())
+      .map((c) => ({
+        ...(c.id ? { id: c.id } : {}),
+        title: c.title,
+        summary: c.summary,
+        competency_units: (c.competency_units ?? [])
+          .filter((unit) => unit.title.trim())
+          .map((unit) => ({
+            ...(unit.id ? { id: unit.id } : {}),
+            title: unit.title,
+            summary: unit.summary ?? "",
+          })),
+      }));
+
     if (!filled.length) {
-      alert("Please add at least one capability with a title before continuing.");
+      alert(
+        "Please add at least one capability with a title before continuing.",
+      );
       return;
     }
     setSaving(true);
     try {
-      await catalogService.updateRole(id, { name: roleDetails.name, skill_levels: savedSkillLevels as any, capabilities: filled });
+      await catalogService.updateRole(id, {
+        name: roleDetails.name,
+        skill_levels: savedSkillLevels as any,
+        capabilities: filled,
+      });
       router.push(`/admin/catalog/challenges/?catalog_role_id=${id}`);
     } catch (err: any) {
-  console.error("ERROR UPDATING CAPABILITIES", err?.message || err);
+      console.error("ERROR UPDATING CAPABILITIES", err?.message || err);
 
-  toast.error(
-    err?.message || "Failed to update capabilities"
-  )
-
+      toast.error(err?.message || "Failed to update capabilities");
     } finally {
       setSaving(false);
     }
@@ -130,10 +221,9 @@ export default function RoleCapabilities() {
             <div className="mt-4">
               <p className="font-semibold text-sm">Role Level</p>
               <p className="text-gray-700 mt-1 capitalize">
-                {/* {roleDetails.skill_levels
-                  ? roleDetails.skill_levels.replace(/-/g, " ")
-                  : "—"} */}
-                  {savedSkillLevels.length > 0 ? savedSkillLevels.join(", ") : "—"}
+                {savedSkillLevels.length > 0
+                  ? savedSkillLevels.join(", ")
+                  : "—"}
               </p>
             </div>
           </div>
@@ -155,14 +245,20 @@ export default function RoleCapabilities() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             {capabilities.map((cap, index) => (
-              <div key={index} className="border border-gray-100 bg-gray-50 p-5 rounded-lg">
+              <div
+                key={index}
+                className="border border-gray-100 bg-gray-50 p-5 rounded-lg"
+              >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Capability {index + 1}
                   </span>
                   {capabilities.length > 1 && (
                     <button onClick={() => removeCapability(index)}>
-                      <Trash2 size={15} className="text-gray-400 hover:text-red-500 transition" />
+                      <Trash2
+                        size={15}
+                        className="text-gray-400 hover:text-red-500 transition"
+                      />
                     </button>
                   )}
                 </div>
@@ -171,7 +267,9 @@ export default function RoleCapabilities() {
                   className="border-b border-gray-200 p-3 w-full bg-white rounded focus:outline-none focus:ring-1 focus:ring-[#FF0046]"
                   placeholder="Enter Capability Title"
                   value={cap.title}
-                  onChange={(e) => handleCapabilityChange(index, "title", e.target.value)}
+                  onChange={(e) =>
+                    handleCapabilityChange(index, "title", e.target.value)
+                  }
                 />
 
                 <textarea
@@ -179,27 +277,53 @@ export default function RoleCapabilities() {
                   placeholder="Describe the capability summary"
                   rows={3}
                   value={cap.summary}
-                  onChange={(e) => handleCapabilityChange(index, "summary", e.target.value)}
+                  onChange={(e) =>
+                    handleCapabilityChange(index, "summary", e.target.value)
+                  }
                 />
 
-                  {/* {capabilities.deliverables?.length > 0 && ( */}
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                          Deliverables
-                        </p>
-                        <ul className="space-y-1">
-                          {/* {capabilities.deliverables.map((d, i) => ( */}
-                            <li
-                              // key={i}
-                              className="text-sm text-gray-700 flex items-center gap-2"
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#FF0046] inline-block" />
-                            example
-                            </li>
-                          {/* ))} */}
-                        </ul>
-                      </div>
-                    {/* )} */}
+                <div className="mt-3 pl-3 border-l-2 border-gray-200">
+                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1.5">
+                    Competency Units
+                  </p>
+
+                  {(cap.competency_units ?? []).length > 0 && (
+                    <div className="space-y-1.5 mb-2">
+                      {cap.competency_units.map((unit: any, uIndex: number) => (
+                        <div key={uIndex} className="flex items-center gap-1.5 group">
+                          <input
+                            className="text-sm border-b border-gray-200 px-2 py-1.5 w-full bg-transparent rounded focus:outline-none focus:ring-1 focus:ring-[#FF0046]/60"
+                            placeholder={`Competency unit ${uIndex + 1}`}
+                            value={unit.title}
+                            onChange={(e) =>
+                              handleUnitChange(index, uIndex, e.target.value)
+                            }
+                          />
+                          <button
+                            onClick={() => removeUnit(index, uIndex)}
+                            className="opacity-0 group-hover:opacity-100 transition shrink-0"
+                            title="Remove competency unit"
+                          >
+                            <Trash2
+                              size={13}
+                              className="text-gray-400 hover:text-red-500 transition"
+                            />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {(cap.competency_units ?? []).length < MAX_UNITS && (
+                    <button
+                      onClick={() => addUnit(index)}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#F01E5A] font-medium transition"
+                    >
+                      <PlusCircle size={13} />
+                      Add Competency Unit
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

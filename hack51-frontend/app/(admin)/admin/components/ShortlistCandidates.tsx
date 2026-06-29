@@ -126,7 +126,7 @@ export default function ShortlistCandidates() {
             </div>
             <h2 className="text-xl font-bold mb-1">Shortlist Delivered!</h2>
             <p className="text-sm text-gray-400 mb-6">
-              Your top {shortlistSize} candidates have been successfully
+              Your top {selected.size} candidates have been successfully
               delivered.
             </p>
             <button
@@ -163,7 +163,7 @@ export default function ShortlistCandidates() {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
               <p className="text-lg font-bold">
-                Select {shortlistSize} candidate{shortlistSize !== 1 ? "s" : ""}{" "}
+                Select up to {shortlistSize} candidate{shortlistSize !== 1 ? "s" : ""}{" "}
                 <span className="text-[#F01E5A]">
                   ({selected.size}/{shortlistSize})
                 </span>
@@ -172,7 +172,7 @@ export default function ShortlistCandidates() {
                 <button
                   onClick={handleConfirm}
                   disabled={
-                    selected.size !== shortlistSize || confirmed || confirming
+                    selected.size === 0 || selected.size > shortlistSize  || confirmed || confirming
                   }
                   className="flex items-center gap-2 px-6 py-3 border-2 border-[#F01E5A] text-[#F01E5A] hover:bg-red-50 disabled:opacity-40 disabled:cursor-default text-sm font-bold rounded-lg transition-colors"
                 >
@@ -233,7 +233,7 @@ export default function ShortlistCandidates() {
                   <tr
                     key={row.id}
                     className="border-b border-gray-50 hover:bg-gray-50/50 cursor-pointer transition-colors"
-                    onClick={() => toggle(row.id)}
+                    onClick={() => toggle(row.users.id)}
                   >
                     <td className="py-4 pr-3">
                       <input
