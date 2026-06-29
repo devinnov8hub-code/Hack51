@@ -44,7 +44,6 @@ export const SubmissionController = {
     return c.json(successResponse("Challenge detail retrieved.", data));
   },
 
-  // ─── CANDIDATE: submit ─────────────────────────────────────────────────────
   async submit(c: Context) {
     const { id: requestId } = c.req.param() as { id: string };
     const body = getBody<SubmitInput>(c);
@@ -72,8 +71,7 @@ export const SubmissionController = {
 
     return c.json(successResponse("Submission received. We'll notify you of the outcome.", data), 201);
   },
-
-  // ─── CANDIDATE: my submissions ─────────────────────────────────────────────
+  
   async mySubmissions(c: Context) {
     const candidateId = c.get("userId");
     const data = await submissionRepo.listCandidateSubmissions(candidateId);

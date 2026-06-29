@@ -42,7 +42,14 @@ export const JobRequestController = {
     const userId = c.get("userId");
     const req = await jobRequestRepo.getJobRequest(id, userId);
     const stats = await jobRequestRepo.getRequestSubmissionStats(id);
-    return c.json(successResponse("Request retrieved.", { ...req, submission_stats: stats }));
+    return c.json(successResponse("Request retrieved.", {
+      ...req,
+      // Actual count of submissions received for this request. The Overview
+      // card must bind to THIS (or submission_stats.total), never to
+      // challenge_cap (which is the maximum, not the received count).
+      received_submissions: stats.total,
+      submission_stats: stats,
+    }));
   },
 
   /**

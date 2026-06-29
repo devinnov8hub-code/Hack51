@@ -86,6 +86,15 @@ export const EmployerDashboard = {
     const submissions = (submissionsRes.data as any[]) ?? [];
     const shortlists  = (shortlistsRes.data as any[]) ?? [];
 
+    // "Pending evaluation" = submissions that still need admin action, i.e.
+    // received but not yet through evaluation. This shrinks automatically on
+    // ANY terminal admin action: score → `scored`, triage-invalid → `rejected`,
+    // triage-returned → `returned` all leave this set, so the dashboard card
+    // updates on the next load without any extra bookkeeping.
+    const pendingEvaluation = submissions.filter((s: any) =>
+      ["submitted", "under_review"].includes(s.status),
+    ).length;
+
     const byStatus = requests.reduce((acc: Record<string, number>, r: any) => {
       acc[r.status] = (acc[r.status] ?? 0) + 1;
       return acc;
@@ -95,7 +104,11 @@ export const EmployerDashboard = {
       summary: {
         total_requests: requests.length,
         total_submissions: submissions.length,
+        // Completed evaluations (kept for backwards compatibility).
         total_evaluations: submissions.filter((s: any) => ["scored", "shortlisted"].includes(s.status)).length,
+        // NEW: submissions still awaiting evaluation — bind the
+        // "Pending Evaluation" card to THIS, not total_evaluations.
+        pending_evaluation: pendingEvaluation,
         total_shortlists_delivered: shortlists.filter((s: any) => s.delivered_at).length,
         unread_notifications: unreadCount,
         by_status: byStatus,
