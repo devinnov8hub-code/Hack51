@@ -139,19 +139,31 @@ export default function EvaluationDetail({ id }: EvaluationDetailProps) {
                 {submissionDetail.id}
               </p>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setRejectOpen(true)}
-                className="px-5 py-2.5 bg-[#F01E5A] hover:bg-[#c0144a] text-white text-sm font-semibold rounded-lg transition-colors"
-              >
-                Reject submission
-              </button>
-              <button
-                onClick={handleSubmitToShortlist}
-                className="px-5 py-2.5 border-2 border-[#F01E5A] text-gray-800 hover:bg-red-50 text-sm font-semibold rounded-lg transition-colors"
-              >
-                Approve Submission
-              </button>
+            <div className="flex gap-3 items-center">
+              {submissionDetail.status === "shortlisted" ? (
+                <span className="px-4 py-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 text-sm font-semibold">
+                  Approved
+                </span>
+              ) : submissionDetail.status === "rejected" ? (
+                <span className="px-4 py-2 rounded-lg bg-red-100 text-red-500 border border-red-200 text-sm font-semibold">
+                  Rejected
+                </span>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setRejectOpen(true)}
+                    className="px-5 py-2.5 bg-[#F01E5A] hover:bg-[#c0144a] text-white text-sm font-semibold rounded-lg transition-colors"
+                  >
+                    Reject submission
+                  </button>
+                  <button
+                    onClick={handleSubmitToShortlist}
+                    className="px-5 py-2.5 border-2 border-[#F01E5A] text-gray-800 hover:bg-red-50 text-sm font-semibold rounded-lg transition-colors"
+                  >
+                    Approve Submission
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
