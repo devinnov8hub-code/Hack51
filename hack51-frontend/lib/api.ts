@@ -84,11 +84,7 @@ api.interceptors.response.use(
       }
     }
 
-    // Build a stable, displayable error regardless of what failed.
-    // Old code did `err.data.message` which crashed when:
-    //   - the request never reached the server (network/CORS/timeout) → err is undefined
-    //   - the server returned a non-JSON body                          → err.data is undefined
-    //   - the server returned a JSON body without a message field      → err.data.message is undefined
+    // Building a stable, displayable error regardless of what failed.
     const status = err?.status ?? 0;
     const data = err?.data as { message?: string; error?: { code?: string } } | undefined;
     const message =

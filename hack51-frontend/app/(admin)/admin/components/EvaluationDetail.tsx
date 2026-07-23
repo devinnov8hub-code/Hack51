@@ -92,12 +92,12 @@ export default function EvaluationDetail({ id }: EvaluationDetailProps) {
 
     const hasScores = Object.keys(scores).length > 0;
     if (!hasScores) {
-      toast.warning("Submit scores first before shortlisting");
+      toast.warning("Submit scores first before approving submission.");
       return;
     }
 
     try {
-      toast.success("Submission shortlisted");
+      toast.success("Submission selected");
       setTimeout(() => {
         router.push(
           `/admin/shortlists/${submissionDetail.job_requests.id}/candidates?shortlist_size=${submissionDetail.job_requests.shortlist_size}`,
@@ -150,7 +150,7 @@ export default function EvaluationDetail({ id }: EvaluationDetailProps) {
                 onClick={handleSubmitToShortlist}
                 className="px-5 py-2.5 border-2 border-[#F01E5A] text-gray-800 hover:bg-red-50 text-sm font-semibold rounded-lg transition-colors"
               >
-                Submit to shortlists
+                Approve Submission
               </button>
             </div>
           </div>

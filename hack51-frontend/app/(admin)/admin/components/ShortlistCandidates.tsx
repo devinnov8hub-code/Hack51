@@ -148,9 +148,9 @@ export default function ShortlistCandidates() {
         Back to review
       </button>
 
-      <h1 className="text-2xl font-bold">Shortlisted Candidates</h1>
+      <h1 className="text-2xl font-bold">Approved Candidates for Shortlisting</h1>
       <p className="text-sm text-gray-400 mt-0.5 mb-6">
-        Select Top-N from shortlisted candidates
+        Select Top-N shortlists from approved candidates
       </p>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

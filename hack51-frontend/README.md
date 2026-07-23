@@ -5,6 +5,7 @@ This project was converted from a Vite + React + React Router app to **Next.js 1
 ## Getting Started
 
 ```bash
+cd hack51-frontend
 npm install
 npm run dev
 ```
