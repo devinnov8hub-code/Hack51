@@ -131,7 +131,7 @@ Catalog setup is a **multi-route wizard**: Roles list → `roles/[id]/skills` �
 ### Candidate — browse → submit
 Challenges list/detail → Submit (manifest + Supabase file upload, draft cached in `sessionStorage`) → Review (3 mandatory integrity checkboxes) → `submissionService.submitArtifact`. Dashboard and Submissions list share `SubmissionTable`.
 
-## Known gaps / unfinished work
+## UI Bye Passes / Work to be continued 
 
 Flagging these so they aren't mistaken for bugs in *your* changes:
 
@@ -142,7 +142,7 @@ Flagging these so they aren't mistaken for bugs in *your* changes:
 - **`employerService.publishRequest`**'s `payment.skip` / Paystack `authorization_url` redirect branch is not implemented in the UI (dev-mode/skip-payment path assumed).
 - **`LockedListModal`** (pay-to-unlock full candidate list) has an empty `handleConfirm` stub.
 - Admin charts (`EvaluationBarChart`, `RequestPieChart`) partly use hardcoded sample data rather than live dashboard data.
-- `middleware.ts` trusts the JWT's `role` claim without verifying the signature — fine as a UX-level redirect, but the backend must still authorize every request independently.
+
 
 ## Conventions to know
 
