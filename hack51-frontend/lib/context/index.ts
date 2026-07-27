@@ -23,8 +23,6 @@ export const userAuth = create((set) => ({
 
   register: async (data: RegisterProps) => {
     const response = await authService.register(data);
-    // Registration does NOT log the user in — they still need to verify email.
-    // Do not set isAuthenticated here.
     return response;
   },
 
