@@ -35,7 +35,6 @@ NEXT_PUBLIC_SUPABASE_URL=<supabase project url>     # required for candidate fil
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase anon key>   # required for candidate file uploads
 ```
 
-> The repo's current `.env` only defines `NEXT_PUBLIC_BASE_URL`. Without the two Supabase vars, candidate artifact uploads (`lib/services/upload.service.ts`) will fail at runtime.
 
 ## Project structure
 
